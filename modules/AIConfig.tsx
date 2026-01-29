@@ -1,907 +1,773 @@
 import React, { useState } from 'react';
 import { AgentConfig, CHINESE_MODELS } from '../../types';
+import TaskTopology from './TaskTopology';
 import { 
-  Bot, Cpu, GitBranch, Shield, Save, Database, 
-  Network, Workflow, Zap, Server, 
-  Settings2, Code, Key, Plug, RefreshCw, 
+  Bot, Cpu, Shield, Save, 
+  Settings2, Key, ListFilter,
   Layers, Search, Terminal, Box,
-  Play, FileJson, Table, ArrowRight,
-  FileCode, Sparkles, Share2, MousePointer2,
-  CheckCircle2, Plus, GripVertical, Building2,
-  FileText, Regex, Eye, BarChart3, ListFilter,
-  ArrowDownToLine, HardDrive, Braces, Link2, 
-  Wand2, TableProperties, AlertCircle, Command,
-  Sliders
+  Play, CheckCircle2, GripVertical, 
+  TableProperties, BrainCircuit,
+  BookOpen, AlertTriangle, ToggleLeft, ToggleRight,
+  Database, FileText, Code, Network, Share2, FileJson, Table,
+  Server, HardDrive, RefreshCw, Zap, Activity, Cable, Plug2, X, Eye, Plus,
+  ArrowRight, FileDigit, Scan, Eraser, Binary, PenTool, Workflow, CheckSquare,
+  FlaskConical, Sliders
 } from 'lucide-react';
 
-// --- Mock Data: Agents ---
+// --- MOCK DATA ---
+
 const initialAgents: AgentConfig[] = [
-  { id: 'agent-1', name: '新污染物发现智能体', role: '发现与初筛', model: 'Qwen-72B (通义千问)', strategy: 'exploratory', isEnabled: true },
-  { id: 'agent-2', name: '结构解析智能体', role: '分子结构推断', model: '传神任度大模型 (RenDu)', strategy: 'balanced', isEnabled: true },
-  { id: 'agent-3', name: '风险评估智能体', role: '多维风险计算', model: 'DeepSeek-V2 (深度求索)', strategy: 'conservative', isEnabled: true },
-  { id: 'agent-4', name: '实验调度智能体', role: '设备资源排期', model: 'GLM-4 (智谱AI)', strategy: 'conservative', isEnabled: false },
+  { id: 'a1', name: '新污染物发现智能体', role: 'Discovery', model: 'Qwen-72B', strategy: 'exploratory', isEnabled: true, autoApprove: true, phase: '发现与筛选' },
+  { id: 'a2', name: '结构解析智能体', role: 'Analysis', model: 'RenDu-Chem', strategy: 'balanced', isEnabled: true, autoApprove: false, phase: '结构解析' },
+  { id: 'a3', name: '风险评估智能体', role: 'Risk', model: 'DeepSeek-V2', strategy: 'conservative', isEnabled: true, autoApprove: false, phase: '风险评估' },
+  { id: 'a4', name: '实验调度智能体', role: 'Control', model: 'GLM-4', strategy: 'conservative', isEnabled: true, autoApprove: true, phase: '全流程' },
 ];
 
-// --- Mock Data: Connectors ---
-const connectors = [
-  { id: 'conn-1', name: 'Lab-LIMS 核心库', type: 'PostgreSQL', status: 'connected', latency: '12ms', lastSync: '1 分钟前', icon: Database },
-  { id: 'conn-2', name: '仪器 IoT 消息总线', type: 'MQTT/Kafka', status: 'connected', latency: '4ms', lastSync: '实时', icon: Zap },
-  { id: 'conn-5', name: 'SAP S/4HANA (物资)', type: 'OData / RFC', status: 'connected', latency: '150ms', lastSync: '1 小时前', icon: Box },
-  { id: 'conn-6', name: '企业 OA (泛微/钉钉)', type: 'API Gateway / Webhook', status: 'connected', latency: '35ms', lastSync: '实时', icon: Building2 },
-  { id: 'conn-3', name: 'PubChem 镜像库', type: 'REST API', status: 'error', latency: '-', lastSync: '2 天前', icon: Network },
-  { id: 'conn-4', name: '原始质谱数据存储', type: 'S3 / MinIO', status: 'connected', latency: '45ms', lastSync: '10 分钟前', icon: Server },
+const capabilities = [
+  { id: 'c1', name: '高分辨质谱(HRMS)智能去噪', category: '数据清洗', status: 'active', desc: '针对非靶向筛查(NTS)数据，基于深度学习去除基线漂移与化学噪声。' },
+  { id: 'c2', name: '新污染物分子结构反演', category: '化学推理', status: 'active', desc: '解析 MS/MS 碎片谱图，反向生成未知污染物的化学结构式 (SMILES)。' },
+  { id: 'c3', name: '计算毒理学(QSAR)效应预测', category: '风险评估', status: 'active', desc: '预测化合物的 LC50、内分泌干扰效应及致突变性。' },
+  { id: 'c4', name: '多介质环境归趋模拟', category: '过程模拟', status: 'inactive', desc: '基于逸度模型(Fugacity Model)计算污染物在水-气-土-生物相的分布。' },
+  { id: 'c5', name: '高通量进样序列智能优化', category: '实验控制', status: 'active', desc: '动态调整进样顺序，最小化交叉污染并优化仪器机时。' },
 ];
 
-// --- Mock Data: MCP Tools ---
-const mcpTools = [
-  { id: 't1', name: 'retrieve_spectrum_library', displayName: '检索标准质谱库', type: '数据检索', desc: '根据母离子 m/z 和保留时间窗口检索内部标准品库，返回匹配度最高的候选物列表。', schema: '{"mz": "number", "rt_window": "number", "top_k": "integer"}', permission: 'Read-Only' },
-  { id: 't2', name: 'control_robotic_arm', displayName: '控制机械臂移动', type: '设备控制', desc: '控制样品前处理机械臂将样品盘从指定位置移动到目标位置。', schema: '{"source_slot": "string", "target_slot": "string", "speed": "enum[slow,fast]"}', permission: 'Admin' },
-  { id: 't3', name: 'run_toxicity_prediction', displayName: '运行毒性预测模型', type: '计算分析', desc: '调用本地 Python 环境中的 QSAR 模型，基于 SMILES 预测 LC50 毒性值。', schema: '{"smiles": "string", "model_version": "string"}', permission: 'Execute' },
-  { id: 't4', name: 'query_lims_sample_status', displayName: '查询 LIMS 样本状态', type: '系统集成', desc: '查询实验室信息管理系统中特定样本ID的流转状态和元数据。', schema: '{"sample_id": "string"}', permission: 'Read-Only' },
-  { id: 't5', name: 'search_knowledge_graph', displayName: '检索知识图谱', type: '知识查询', desc: '通过 Cypher 语句查询新污染物知识图谱，获取化合物关联的文献和法规信息。', schema: '{"entity_name": "string", "relation_type": "string"}', permission: 'Read-Only' },
-  { id: 't6', name: 'adjust_hplc_params', displayName: '调节 HPLC 参数', type: '设备控制', desc: '动态调整液相色谱的流速、柱温箱温度或流动相配比。', schema: '{"flow_rate": "float", "temperature": "float", "solvent_ratio": "object"}', permission: 'Admin' },
-  { id: 't7', name: 'generate_experiment_report', displayName: '生成实验报告', type: '文档处理', desc: '基于模板 ID 和实验数据 ID，自动生成 PDF 格式的实验总结报告。', schema: '{"template_id": "string", "data_ids": "array<string>"}', permission: 'Write' },
-  { id: 't8', name: 'jdbc_query_executor', displayName: '通用 SQL 执行器', type: '系统集成', desc: '执行只读 SQL 查询以提取结构化数据。', schema: '{"sql": "string", "timeout": "int"}', permission: 'Read-Only' },
-  { id: 't9', name: 's3_object_reader', displayName: 'S3 对象读取器', type: '数据检索', desc: '从对象存储中流式读取非结构化文件。', schema: '{"bucket": "string", "key": "string"}', permission: 'Read-Only' },
-  { id: 't10', name: 'kg_batch_writer', displayName: '图谱批量写入', type: '知识查询', desc: '将实体和关系批量写入图数据库。', schema: '{"triples": "array"}', permission: 'Write' },
+const dataPipelines = [
+  { id: 'dp1', name: 'NTS 高分辨质谱数据清洗流水线', type: 'Spectral Processing', status: 'active', tps: '12MB/s', desc: '基于 MZmine 3 内核的去噪、对齐与峰提取流程' },
+  { id: 'dp2', name: '环保文献算法自动化抽取流水线', type: 'Knowledge Mining', status: 'active', tps: '5 Papers/min', desc: '从 PDF 文献中识别公式与伪代码并转化为 Python 函数' },
+  { id: 'dp3', name: '新污染物理化性质数据挖掘流水线', type: 'Data Extraction', status: 'active', tps: '120 Records/s', desc: '从文献表格与文本中提取 LogKow, LC50 等关键参数' },
+  { id: 'dp4', name: 'LIMS-IoT 多源感知数据融合引擎', type: 'Fusion', status: 'active', tps: '450 Ops/s', desc: '实验室 LIMS 数据与在线水质传感器数据的时空对齐' },
 ];
 
-// --- Types for Pipeline Builder ---
-type OperatorType = 'source_jdbc' | 'source_s3' | 'trans_ocr' | 'trans_mapping' | 'trans_python' | 'trans_llm' | 'model_embedding' | 'model_ner' | 'sink_vec' | 'sink_kg';
+// Complex Workflow Nodes for Low-Code View
+const PIPELINE_WORKFLOWS: Record<string, {id: string, label: string, type: string, desc: string}[]> = {
+  'dp1': [
+    { id: 'n1', label: '原始 RAW 数据导入', type: 'input', desc: '读取 Thermo/Agilent 原始质谱文件 (.raw, .d)' },
+    { id: 'n2', label: '质谱图质控 (QC)', type: 'process', desc: '检查 TIC 总离子流图是否存在断崖式下跌' },
+    { id: 'n3', label: '基线校正 (Baseline)', type: 'process', desc: '使用非对称最小二乘平滑算法去除基线漂移' },
+    { id: 'n4', label: '噪声过滤 (Denoise)', type: 'process', desc: '小波变换去噪，信噪比阈值设定为 3:1' },
+    { id: 'n5', label: '峰提取 (Peak Pick)', type: 'ai', desc: '基于 CentWave 算法提取色谱峰' },
+    { id: 'n6', label: '同位素峰识别', type: 'process', desc: '根据 13C/12C 丰度比合并同位素簇' },
+    { id: 'n7', label: '加合物归组', type: 'process', desc: '识别 [M+H]+, [M+Na]+ 等常见加合物' },
+    { id: 'n8', label: '保留时间对齐', type: 'process', desc: '基于 RANSAC 算法对齐不同批次样品的 RT' },
+    { id: 'n9', label: '空白扣除 (Blank)', type: 'filter', desc: '扣除过程空白与溶剂空白中的背景干扰' },
+    { id: 'n10', label: '分子式预测', type: 'ai', desc: '基于七条黄金规则计算可能的分子式' },
+    { id: 'n11', label: '数据库检索', type: 'db', desc: '匹配 ChemSpider, PubChem 本地镜像库' },
+    { id: 'n12', label: '结果导出', type: 'output', desc: '生成 .csv 特征表与 .mgf 碎片文件' },
+  ],
+  // ... other pipelines omitted for brevity
+};
 
-interface PipelineNode {
-  id: string;
-  type: OperatorType;
-  label: string;
-  status: 'ready' | 'processing' | 'error';
-  x: number;
-  y: number;
-  desc?: string;
-}
-
-const initialPipelineNodes: PipelineNode[] = [
-  { id: 'n1', type: 'source_s3', label: 'S3: 原始 PDF 文献集', status: 'ready', x: 50, y: 100, desc: '连接到 minIO 存储桶 "raw-papers-2024"' },
-  { id: 'n2', type: 'trans_ocr', label: 'OCR 与元数据提取', status: 'ready', x: 280, y: 100, desc: 'PaddleOCR v4 + 正则表达式提取' },
-  { id: 'n3', type: 'trans_python', label: '文本分块 (Python)', status: 'ready', x: 510, y: 100, desc: 'LangChain RecursiveSplitter' },
-  { id: 'n4', type: 'model_embedding', label: 'BGE-M3 向量化', status: 'processing', x: 740, y: 100, desc: 'BAAI General Embedding' },
-  { id: 'n5', type: 'sink_vec', label: 'Milvus 向量库写入', status: 'ready', x: 970, y: 100, desc: 'Collection: pollutant_knowledge' },
+const dataConnectors = [
+  { id: 'dc1', name: 'Lab-LIMS Connector', type: 'Database (Oracle)', status: 'active', endpoint: '192.168.1.50:1521', desc: 'Syncs sample registration and basic physicochemical properties.' },
+  { id: 'dc2', name: 'IoT Sensor Mesh (MQTT)', type: 'Stream (MQTT)', status: 'active', endpoint: 'mqtt://sensor-hub:1883', desc: 'Real-time temperature, pH, and flow rate monitoring from reactors.' },
+  { id: 'dc3', name: 'MassSpec Instrument Interface', type: 'File Watcher', status: 'active', endpoint: '//nas/raw_data/', desc: 'Auto-ingest .raw files from Q-TOF MS upon acquisition completion.' },
+  { id: 'dc4', name: 'PubChem API Gateway', type: 'REST API', status: 'paused', endpoint: 'pubchem.ncbi.nlm.nih.gov', desc: 'External chemical structure validation.' },
 ];
 
-// --- Sub-Components ---
+const datasets = [
+  { id: 'd1', name: 'NTS Screening Raw Data 2024-Q1', rows: 4500, size: '4.2 GB', type: 'Spectral', updated: '2024-05-15', status: 'Ready' },
+  { id: 'd2', name: 'Yangtze River Water Quality Logs', rows: 12050, size: '125 MB', type: 'Tabular', updated: '2024-05-20', status: 'Live' },
+  { id: 'd3', name: 'Known Pollutants Fingerprint DB', rows: 850, size: '560 MB', type: 'Reference', updated: '2024-04-01', status: 'Static' },
+  { id: 'd4', name: 'ToxCast Bio-Assay Results', rows: 3200, size: '85 MB', type: 'Tabular', updated: '2024-05-10', status: 'Ready' },
+];
 
-const AgentOrchestration = ({ agents, setAgents }: { agents: AgentConfig[], setAgents: any }) => {
-  const handleModelChange = (id: string, newModel: string) => {
-    setAgents((prev: AgentConfig[]) => prev.map(agent => agent.id === id ? { ...agent, model: newModel } : agent));
+const mockDatasetContent: Record<string, any[]> = {
+  'd1': [
+    { id: 'S001', rt: '12.4', mz: '455.12', intensity: 8500, snr: 12.5 },
+    { id: 'S002', rt: '14.2', mz: '321.08', intensity: 12400, snr: 45.1 },
+    { id: 'S003', rt: '15.1', mz: '566.21', intensity: 6200, snr: 8.2 },
+    { id: 'S004', rt: '18.9', mz: '288.15', intensity: 3100, snr: 4.5 },
+    { id: 'S005', rt: '22.3', mz: '412.05', intensity: 9800, snr: 18.0 },
+    { id: 'S006', rt: '24.1', mz: '601.33', intensity: 2100, snr: 3.2 },
+  ],
+  // ... other data omitted
+};
+
+const llmConfigs = [
+  { id: 'm1', name: 'Qwen-72B-Chat (通义千问)', provider: 'Aliyun', status: 'connected', latency: '120ms', context: '32k' },
+  { id: 'm2', name: 'DeepSeek-V2 (深度求索)', provider: 'DeepSeek API', status: 'connected', latency: '98ms', context: '128k' },
+  { id: 'm3', name: 'RenDu-Chem-Pro (传神任度)', provider: 'Local / Private', status: 'offline', latency: '-', context: '8k' },
+  { id: 'm4', name: 'GLM-4 (智谱AI)', provider: 'Zhipu API', status: 'connected', latency: '145ms', context: '128k' },
+];
+
+// --- SUB-COMPONENTS ---
+
+const AgentConfigPanel = ({ agents, setAgents, onViewTopology }: { agents: AgentConfig[], setAgents: any, onViewTopology: (id: string) => void }) => {
+  const toggleAgent = (id: string) => {
+    setAgents((prev: AgentConfig[]) => prev.map(a => a.id === id ? { ...a, isEnabled: !a.isEnabled } : a));
   };
   
-  const toggleAgent = (id: string) => {
-    setAgents((prev: AgentConfig[]) => prev.map(agent => agent.id === id ? { ...agent, isEnabled: !agent.isEnabled } : agent));
+  const toggleAuto = (id: string) => {
+    setAgents((prev: AgentConfig[]) => prev.map(a => a.id === id ? { ...a, autoApprove: !a.autoApprove } : a));
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {agents.map((agent) => (
-          <div key={agent.id} className={`border rounded-lg p-5 transition-all ${agent.isEnabled ? 'bg-slate-800 border-slate-700' : 'bg-slate-900 border-slate-800 opacity-70'}`}>
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${agent.isEnabled ? 'bg-blue-900 text-blue-300' : 'bg-slate-800 text-slate-500'}`}>
-                  <Bot className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-100">{agent.name}</h3>
-                  <div className="text-xs text-slate-400">{agent.role}</div>
-                </div>
-              </div>
-              <div className="relative inline-block w-12 h-6 rounded-full bg-slate-700 cursor-pointer" onClick={() => toggleAgent(agent.id)}>
-                 <div className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-transform ${agent.isEnabled ? 'translate-x-6 bg-green-500' : 'bg-slate-500'}`}></div>
-              </div>
+    <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-300">
+       {agents.map(agent => (
+         <div key={agent.id} className={`p-4 rounded-lg border flex flex-col gap-4 transition-all hover:border-blue-500/50 ${agent.isEnabled ? 'bg-slate-800 border-slate-700' : 'bg-slate-800/50 border-slate-700/50 opacity-60'}`}>
+            <div className="flex justify-between items-start">
+               <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-900/50 flex items-center justify-center text-blue-400">
+                     <Bot className="w-6 h-6" />
+                  </div>
+                  <div>
+                     <div className="font-bold text-slate-200">{agent.name}</div>
+                     <div className="text-xs text-slate-500">{agent.phase} Phase</div>
+                  </div>
+               </div>
+               <button onClick={() => toggleAgent(agent.id)}>
+                  {agent.isEnabled ? <ToggleRight className="w-8 h-8 text-green-500" /> : <ToggleLeft className="w-8 h-8 text-slate-600" />}
+               </button>
+            </div>
+            
+            <div className="bg-slate-900/50 p-3 rounded border border-slate-700/50 text-xs space-y-2">
+               <div className="flex justify-between items-center">
+                  <span className="text-slate-400">模型基座</span>
+                  <select className="bg-slate-800 border-none text-slate-200 text-xs rounded py-0.5 focus:ring-0">
+                     {CHINESE_MODELS.map(m => <option key={m}>{m}</option>)}
+                  </select>
+               </div>
+               <div className="flex justify-between items-center">
+                  <span className="text-slate-400">决策策略</span>
+                  <span className={`px-2 py-0.5 rounded border ${
+                    agent.strategy === 'exploratory' ? 'text-purple-400 border-purple-500/30' : 'text-blue-400 border-blue-500/30'
+                  }`}>{agent.strategy}</span>
+               </div>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-slate-500 uppercase font-bold mb-1.5 flex items-center gap-1">
-                  <Cpu className="w-3 h-3" /> 模型基座
-                </label>
-                <select 
-                  disabled={!agent.isEnabled}
-                  value={agent.model}
-                  onChange={(e) => handleModelChange(agent.id, e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded px-3 py-2 outline-none focus:border-blue-500 disabled:opacity-50"
-                >
-                  {CHINESE_MODELS.map(model => (
-                    <option key={model} value={model}>{model}</option>
-                  ))}
-                </select>
-                {agent.model.includes('RenDu') && (
-                  <div className="text-[10px] text-purple-400 mt-1 flex items-center gap-1">
-                    <Shield className="w-3 h-3" />
-                    已启用化学领域专用增强 (Transsion RenDu)
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="text-xs text-slate-500 uppercase font-bold mb-1.5 flex items-center gap-1">
-                  <GitBranch className="w-3 h-3" /> 决策偏好
-                </label>
-                <div className="flex gap-2">
-                   <div className={`text-xs px-3 py-1.5 rounded border capitalize flex-1 text-center ${agent.strategy === 'conservative' ? 'bg-blue-600/20 border-blue-500 text-blue-300' : 'bg-slate-900 border-slate-700 text-slate-500'}`}>保守严谨</div>
-                   <div className={`text-xs px-3 py-1.5 rounded border capitalize flex-1 text-center ${agent.strategy === 'balanced' ? 'bg-blue-600/20 border-blue-500 text-blue-300' : 'bg-slate-900 border-slate-700 text-slate-500'}`}>平衡</div>
-                   <div className={`text-xs px-3 py-1.5 rounded border capitalize flex-1 text-center ${agent.strategy === 'exploratory' ? 'bg-blue-600/20 border-blue-500 text-blue-300' : 'bg-slate-900 border-slate-700 text-slate-500'}`}>探索创新</div>
-                </div>
-              </div>
+            <div className="mt-auto pt-3 border-t border-slate-700/50 flex items-center justify-between">
+               <span className="text-xs text-slate-400 flex items-center gap-1">
+                  {agent.autoApprove ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" /> : <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />}
+                  {agent.autoApprove ? '允许自动推进' : '需人工确认'}
+               </span>
+               <div className="flex gap-2">
+                  <button onClick={() => toggleAuto(agent.id)} className="text-xs text-slate-400 hover:text-white transition-colors">
+                     更改权限
+                  </button>
+                  <button 
+                     onClick={() => onViewTopology(agent.id)}
+                     className="flex items-center gap-1 text-xs bg-blue-600/20 text-blue-400 border border-blue-600/30 px-2 py-1 rounded hover:bg-blue-600/40 transition-colors"
+                  >
+                     <Network className="w-3 h-3" /> 查看作业流
+                  </button>
+               </div>
             </div>
-          </div>
-        ))}
-      </div>
+         </div>
+       ))}
     </div>
   );
 };
 
-const DataConnectors = () => {
-  return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-       <div className="flex justify-between items-end mb-4">
-          <p className="text-sm text-slate-400">管理实验室异构数据源连接，包含 LIMS、IoT、ERP (SAP) 及 OA 审批流系统。</p>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm transition-colors">
-            <Plug className="w-4 h-4" /> 新增数据源连接
-          </button>
-       </div>
-       
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {connectors.map(conn => (
-            <div key={conn.id} className="bg-slate-800 border border-slate-700 rounded-lg p-5 flex flex-col hover:border-blue-500/50 transition-colors group">
-               <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-3">
-                     <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center text-slate-300 group-hover:bg-blue-900/30 group-hover:text-blue-400 transition-colors">
-                        <conn.icon className="w-5 h-5" />
-                     </div>
-                     <div>
-                        <div className="font-semibold text-slate-200">{conn.name}</div>
-                        <div className="text-xs text-slate-500 font-mono">{conn.type}</div>
+const CapabilityConfig = ({ capability, onBack }: { capability: any, onBack: () => void }) => {
+   return (
+      <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 animate-in fade-in slide-in-from-right duration-300 h-full flex flex-col">
+         <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+            <div className="flex items-center gap-4">
+               <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors">
+                  <ArrowRight className="w-5 h-5 rotate-180" />
+               </button>
+               <div>
+                  <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                     <Box className="w-5 h-5 text-blue-400" />
+                     {capability.name}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">环境领域专属参数配置</p>
+               </div>
+            </div>
+            <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-500 shadow-lg shadow-blue-900/30">
+               保存配置
+            </button>
+         </div>
+
+         <div className="flex-1 overflow-y-auto space-y-8 pr-2 custom-scrollbar">
+            {/* General Settings */}
+            <div>
+               <h4 className="text-sm font-bold text-slate-300 uppercase mb-4 flex items-center gap-2">
+                  <Sliders className="w-4 h-4" /> 核心参数
+               </h4>
+               <div className="grid grid-cols-2 gap-6">
+                  <div className="bg-slate-900/50 p-4 rounded border border-slate-700">
+                     <label className="block text-xs text-slate-400 mb-2">算法敏感度 (Sensitivity)</label>
+                     <input type="range" className="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500 mb-2" />
+                     <div className="flex justify-between text-[10px] text-slate-500">
+                        <span>Low (Conservative)</span>
+                        <span>High (Exploratory)</span>
                      </div>
                   </div>
-                  <div className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${
-                    conn.status === 'connected' ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'
-                  }`}>
-                     {conn.status}
+                  <div className="bg-slate-900/50 p-4 rounded border border-slate-700">
+                     <label className="block text-xs text-slate-400 mb-2">最大并发线程数</label>
+                     <select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-sm text-slate-200">
+                        <option>4 Threads</option>
+                        <option>8 Threads</option>
+                        <option>16 Threads</option>
+                        <option>Auto (GPU)</option>
+                     </select>
                   </div>
                </div>
-               
-               <div className="mt-auto grid grid-cols-2 gap-4 pt-4 border-t border-slate-700/50">
-                  <div>
-                     <div className="text-[10px] text-slate-500 uppercase">网络延迟</div>
-                     <div className="text-sm font-mono text-slate-300">{conn.latency}</div>
+            </div>
+
+            {/* Advanced Settings */}
+            <div>
+               <h4 className="text-sm font-bold text-slate-300 uppercase mb-4 flex items-center gap-2">
+                  <Cpu className="w-4 h-4" /> 领域模型微调
+               </h4>
+               <div className="space-y-4">
+                  <div className="flex items-center justify-between bg-slate-900/50 p-4 rounded border border-slate-700">
+                     <div>
+                        <div className="text-sm font-medium text-slate-200">启用背景扣除 (Background Subtraction)</div>
+                        <div className="text-xs text-slate-500 mt-1">自动识别并扣除过程空白中的干扰峰</div>
+                     </div>
+                     <div className="relative inline-block w-12 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer bg-green-900/50 border border-green-700">
+                        <span className="translate-x-6 inline-block w-6 h-6 transform bg-green-500 rounded-full shadow transition-transform"></span>
+                     </div>
                   </div>
-                  <div>
-                     <div className="text-[10px] text-slate-500 uppercase">上次同步</div>
-                     <div className="text-sm font-mono text-slate-300 flex items-center gap-1">
-                        {conn.lastSync}
-                        {conn.status === 'connected' && <RefreshCw className="w-3 h-3 text-slate-600 hover:text-blue-400 cursor-pointer" />}
+                  <div className="bg-slate-900/50 p-4 rounded border border-slate-700">
+                     <label className="block text-xs text-slate-400 mb-2">引用数据库优先级</label>
+                     <div className="flex gap-2">
+                        {['EPA ToxCast', 'ChemSpider', 'PubChem', 'Internal DB'].map(tag => (
+                           <span key={tag} className="px-3 py-1 bg-slate-800 rounded-full text-xs border border-slate-600 text-slate-300 hover:border-blue-500 cursor-pointer">
+                              {tag}
+                           </span>
+                        ))}
                      </div>
                   </div>
                </div>
             </div>
+         </div>
+      </div>
+   )
+}
+
+const CapabilityPanel = () => {
+  const [editingCap, setEditingCap] = useState<any>(null);
+
+  if (editingCap) {
+     return <CapabilityConfig capability={editingCap} onBack={() => setEditingCap(null)} />;
+  }
+
+  return (
+    <div className="space-y-4 animate-in fade-in duration-300">
+       <div className="grid grid-cols-12 gap-4 text-xs font-bold text-slate-500 px-4 uppercase">
+          <div className="col-span-4">能力模块名称</div>
+          <div className="col-span-3">分类</div>
+          <div className="col-span-3">状态</div>
+          <div className="col-span-2 text-right">操作</div>
+       </div>
+       <div className="space-y-2">
+          {capabilities.map(cap => (
+             <div key={cap.id} className="grid grid-cols-12 gap-4 items-center bg-slate-800 p-4 rounded-lg border border-slate-700 hover:border-slate-500 transition-colors">
+                <div className="col-span-4">
+                   <div className="font-medium text-slate-200">{cap.name}</div>
+                   <div className="text-xs text-slate-500 mt-0.5">{cap.desc}</div>
+                </div>
+                <div className="col-span-3">
+                   <span className="px-2 py-1 bg-slate-700 rounded text-xs text-slate-300">{cap.category}</span>
+                </div>
+                <div className="col-span-3">
+                   {cap.status === 'active' 
+                      ? <span className="text-green-400 text-xs flex items-center gap-1"><Zap className="w-3 h-3"/> 已启用</span> 
+                      : <span className="text-slate-500 text-xs">已禁用</span>
+                   }
+                </div>
+                <div className="col-span-2 text-right">
+                   <button 
+                     onClick={() => setEditingCap(cap)}
+                     className="text-blue-400 text-xs hover:text-white border border-blue-500/30 px-3 py-1.5 rounded hover:bg-blue-600 transition-all shadow-sm"
+                   >
+                      配置
+                   </button>
+                </div>
+             </div>
           ))}
        </div>
     </div>
   );
 };
 
-// --- Data Pipeline Builder (Enhanced Palantir Style) ---
-const DataPipelineBuilder = () => {
-  // Config state
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>('n3');
-  const [previewOperator, setPreviewOperator] = useState<OperatorType | null>(null);
+// --- Low Code Workflow Component ---
+const PipelineWorkflowDesigner = ({ pipelineId, onBack }: { pipelineId: string, onBack: () => void }) => {
+   const pipeline = dataPipelines.find(p => p.id === pipelineId);
+   const nodes = PIPELINE_WORKFLOWS[pipelineId] || PIPELINE_WORKFLOWS['dp1']; // Fallback
+   const [selectedNode, setSelectedNode] = useState<any>(null);
 
-  // Derive display context
-  const activeNode = selectedNodeId ? initialPipelineNodes.find(n => n.id === selectedNodeId) : null;
-  const activeType = activeNode ? activeNode.type : previewOperator;
-  const activeLabel = activeNode ? activeNode.label : (previewOperator ? `配置工坊: ${previewOperator}` : 'No Selection');
+   return (
+      <div className="h-full flex flex-col bg-slate-900 absolute inset-0 z-50 animate-in slide-in-from-right duration-300">
+         <div className="h-14 border-b border-slate-700 flex items-center justify-between px-6 bg-slate-800">
+            <div className="flex items-center gap-4">
+               <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white">
+                  <ArrowRight className="w-5 h-5 rotate-180" />
+               </button>
+               <div>
+                  <h3 className="font-bold text-slate-100 flex items-center gap-2">
+                     <Workflow className="w-5 h-5 text-blue-400" />
+                     {pipeline?.name}
+                  </h3>
+                  <p className="text-xs text-slate-500">Low-Code Workflow Configuration Mode</p>
+               </div>
+            </div>
+            <div className="flex gap-2">
+               <button className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-500">保存工作流</button>
+            </div>
+         </div>
 
-  // --- Reusable Config Components ---
-
-  const MCPSelector = ({ label, category }: { label: string, category: string }) => (
-    <div className="space-y-2 pt-2 border-t border-slate-700/50">
-      <div className="flex justify-between items-center">
-        <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
-          <Command className="w-3 h-3 text-purple-400" /> {label} (MCP)
-        </label>
-        <span className="text-[10px] bg-purple-900/30 text-purple-300 px-1.5 rounded border border-purple-500/20">Protocol Binding</span>
-      </div>
-      <select className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-300">
-         <option value="">-- 选择执行工具 --</option>
-         {mcpTools.filter(t => t.type === category).map(t => (
-           <option key={t.id} value={t.id}>{t.displayName} ({t.name})</option>
-         ))}
-         {mcpTools.filter(t => t.type !== category).map(t => (
-           <option key={t.id} value={t.id} disabled className="text-slate-600">{t.displayName} (Type Mismatch)</option>
-         ))}
-      </select>
-      <div className="text-[10px] text-slate-500">
-        绑定后，该节点将通过 Model Context Protocol 调用选定工具执行实际逻辑。
-      </div>
-    </div>
-  );
-
-  const ConfigSection = ({ title, icon: Icon, children }: any) => (
-    <div className="space-y-3 pb-4">
-       <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-          <Icon className="w-4 h-4 text-blue-400" /> {title}
-       </div>
-       {children}
-    </div>
-  );
-
-  // --- Configuration Panel Renderers ---
-
-  // 1. Source: S3 Object Storage
-  const renderS3Config = () => (
-     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300">
-        <ConfigSection title="连接配置" icon={Plug}>
-           <div className="grid grid-cols-2 gap-3">
-              <div>
-                 <label className="block text-xs text-slate-500 mb-1">存储类型</label>
-                 <select className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200">
-                    <option>S3 Compatible (MinIO)</option>
-                    <option>AWS S3</option>
-                    <option>Aliyun OSS</option>
-                 </select>
-              </div>
-              <div>
-                 <label className="block text-xs text-slate-500 mb-1">Region</label>
-                 <input type="text" defaultValue="cn-east-1" className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200" />
-              </div>
-           </div>
-           <div>
-              <label className="block text-xs text-slate-500 mb-1">Bucket Name</label>
-              <div className="flex gap-2">
-                 <input type="text" defaultValue="raw-papers-2024" className="flex-1 bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200" />
-                 <button className="px-3 bg-slate-800 border border-slate-600 rounded text-xs hover:bg-slate-700">Browse</button>
-              </div>
-           </div>
-        </ConfigSection>
-
-        <ConfigSection title="数据过滤" icon={ListFilter}>
-           <div>
-              <label className="block text-xs text-slate-500 mb-1">文件通配符 (Glob Pattern)</label>
-              <input type="text" defaultValue="**/*.pdf" className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs font-mono text-green-400" />
-           </div>
-           <div className="flex items-center gap-2 mt-2">
-              <input type="checkbox" defaultChecked className="rounded bg-slate-900 border-slate-600" />
-              <span className="text-xs text-slate-400">递归子目录</span>
-           </div>
-        </ConfigSection>
-
-        <MCPSelector label="读取执行器" category="数据检索" />
-
-        <div className="flex-1 flex flex-col min-h-[150px] border-t border-slate-700/50 pt-4">
-           <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-bold text-slate-400">预览文件列表</span>
-              <span className="text-[10px] text-green-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Connection OK</span>
-           </div>
-           <div className="bg-slate-950 border border-slate-700 rounded flex-1 overflow-auto p-2">
-              <div className="text-[10px] font-mono text-slate-300 space-y-1">
-                 <div className="flex justify-between hover:bg-slate-900 px-1"><span>PFAS_Toxicity_Review.pdf</span><span className="text-slate-500">2.4MB</span></div>
-                 <div className="flex justify-between hover:bg-slate-900 px-1"><span>Yangtze_River_Survey.pdf</span><span className="text-slate-500">1.8MB</span></div>
-                 <div className="flex justify-between hover:bg-slate-900 px-1"><span>GB_5749_Method.pdf</span><span className="text-slate-500">4.2MB</span></div>
-              </div>
-           </div>
-        </div>
-     </div>
-  );
-
-  // 2. Source: JDBC
-  const renderJDBCConfig = () => (
-     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300">
-        <ConfigSection title="数据库连接" icon={Database}>
-           <div>
-              <label className="block text-xs text-slate-500 mb-1">Driver Class</label>
-              <select className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200">
-                 <option>org.postgresql.Driver</option>
-                 <option>com.mysql.cj.jdbc.Driver</option>
-                 <option>oracle.jdbc.OracleDriver</option>
-              </select>
-           </div>
-           <div>
-              <label className="block text-xs text-slate-500 mb-1">JDBC URL</label>
-              <input type="text" defaultValue="jdbc:postgresql://192.168.1.50:5432/lims_production" className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs font-mono text-slate-300" />
-           </div>
-           <div className="grid grid-cols-2 gap-3">
-              <input type="text" placeholder="Username" defaultValue="readonly_user" className="bg-slate-900 border border-slate-600 rounded p-2 text-xs" />
-              <input type="password" placeholder="Password" defaultValue="******" className="bg-slate-900 border border-slate-600 rounded p-2 text-xs" />
-           </div>
-        </ConfigSection>
-
-        <ConfigSection title="查询配置" icon={Code}>
-           <div>
-              <label className="block text-xs text-slate-500 mb-1">SQL Query</label>
-              <textarea className="w-full h-24 bg-slate-900 border border-slate-600 rounded p-2 text-xs font-mono text-blue-200 resize-none focus:ring-1 focus:ring-blue-500" defaultValue="SELECT * FROM samples WHERE created_at > NOW() - INTERVAL '7 days'"></textarea>
-           </div>
-        </ConfigSection>
-        
-        <MCPSelector label="SQL 执行代理" category="系统集成" />
-
-        <div className="bg-slate-800 p-3 rounded border border-slate-700 flex justify-center">
-           <button className="flex items-center gap-2 text-xs text-blue-400 hover:text-white transition-colors">
-              <Play className="w-3 h-3" /> 测试连接并预览前 10 行
-           </button>
-        </div>
-     </div>
-  );
-
-  // 3. Transform: OCR
-  const renderOCRConfig = () => (
-     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300">
-        <ConfigSection title="OCR 引擎参数" icon={Sliders}>
-           <div>
-              <label className="block text-xs text-slate-500 mb-1">识别引擎</label>
-              <select className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200">
-                 <option>PaddleOCR v4 (Local)</option>
-                 <option>Tesseract 5.0</option>
-                 <option>Azure AI Vision</option>
-              </select>
-           </div>
-           <div className="grid grid-cols-2 gap-3">
-              <div>
-                 <label className="block text-xs text-slate-500 mb-1">语言模型</label>
-                 <select className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200">
-                    <option>中英文混合 (CH-EN)</option>
-                    <option>纯英文 (EN)</option>
-                    <option>化学公式增强</option>
-                 </select>
-              </div>
-              <div>
-                 <label className="block text-xs text-slate-500 mb-1">置信度阈值</label>
-                 <input type="number" defaultValue="0.85" step="0.05" className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200" />
-              </div>
-           </div>
-        </ConfigSection>
-
-        <ConfigSection title="正则表达式提取" icon={Regex}>
-           <div className="border border-slate-700 rounded bg-slate-950 p-2 h-32 overflow-y-auto space-y-2">
-              {[
-                 { name: 'CAS No.', regex: '\\b\\d{2,7}-\\d{2}-\\d\\b' },
-                 { name: 'Concentration', regex: '([0-9.]+)\\s*(mg/L|ug/L)' }
-              ].map((r, i) => (
-                 <div key={i} className="flex flex-col gap-1 border-b border-slate-800 pb-2 last:border-0">
-                    <div className="flex justify-between">
-                       <span className="text-[10px] text-blue-400 font-bold">{r.name}</span>
-                       <button className="text-[10px] text-slate-500 hover:text-red-400">Remove</button>
-                    </div>
-                    <code className="text-[10px] font-mono text-slate-400 bg-slate-900 px-1 rounded">{r.regex}</code>
-                 </div>
-              ))}
-              <button className="w-full text-center text-[10px] text-slate-500 hover:text-white border border-dashed border-slate-700 py-1 rounded">+ Add Pattern</button>
-           </div>
-        </ConfigSection>
-
-        <MCPSelector label="文档处理服务" category="文档处理" />
-     </div>
-  );
-
-  // 4. Transform: Mapping
-  const renderMappingConfig = () => (
-     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300">
-        <ConfigSection title="Schema 映射" icon={TableProperties}>
-           <div className="flex items-center justify-between text-xs text-slate-400 px-2 mb-2">
-              <span>Source Field</span>
-              <span>Target Field</span>
-           </div>
-           <div className="space-y-2">
-              {[
-                { s: 'raw_cas', t: 'cas_id', type: 'String' },
-                { s: 'val_conc', t: 'concentration', type: 'Float' },
-                { s: 'unit_txt', t: 'unit', type: 'String' }
-              ].map((m, i) => (
-                 <div key={i} className="flex items-center gap-2 bg-slate-900 p-2 rounded border border-slate-700">
-                    <div className="flex-1 font-mono text-[10px] text-slate-300 truncate" title={m.s}>{m.s}</div>
-                    <ArrowRight className="w-3 h-3 text-slate-500" />
-                    <div className="flex-1 font-mono text-[10px] text-blue-300 truncate" title={m.t}>{m.t}</div>
-                    <span className="text-[9px] bg-slate-800 px-1 rounded text-slate-500">{m.type}</span>
-                 </div>
-              ))}
-           </div>
-           <button className="w-full mt-2 py-1.5 border border-slate-600 bg-slate-800 rounded text-xs text-slate-300 hover:bg-slate-700">自动匹配字段 (Auto Map)</button>
-        </ConfigSection>
-
-        <ConfigSection title="转换规则" icon={Wand2}>
-           <div className="bg-slate-900 p-3 rounded border border-slate-700 space-y-2">
-              <label className="flex items-center gap-2 text-xs text-slate-300">
-                 <input type="checkbox" defaultChecked className="rounded bg-slate-800 border-slate-600" />
-                 忽略空值 (Drop Nulls)
-              </label>
-              <label className="flex items-center gap-2 text-xs text-slate-300">
-                 <input type="checkbox" className="rounded bg-slate-800 border-slate-600" />
-                 强制类型转换 (Strict Cast)
-              </label>
-           </div>
-        </ConfigSection>
-     </div>
-  );
-
-  // 5. Transform: Python
-  const renderPythonConfig = () => (
-     <div className="flex flex-col h-full space-y-4 animate-in fade-in duration-300">
-        <div className="flex justify-between items-center">
-           <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-              <Code className="w-4 h-4 text-pink-400" /> 脚本编辑器
-           </div>
-           <select className="bg-slate-900 border border-slate-600 rounded text-[10px] px-2 py-1 text-slate-400">
-              <option>Python 3.9</option>
-              <option>Python 3.10</option>
-           </select>
-        </div>
-        
-        <div className="flex-1 border border-slate-700 rounded overflow-hidden flex flex-col">
-           <div className="bg-[#0d1117] flex-1 p-3 font-mono text-xs text-slate-300 overflow-auto custom-scrollbar leading-relaxed">
-              <span className="text-purple-400">def</span> <span className="text-yellow-200">process_record</span>(record):<br/>
-              &nbsp;&nbsp;<span className="text-slate-500"># Custom transformation logic</span><br/>
-              &nbsp;&nbsp;<span className="text-purple-400">if</span> record[<span className="text-green-300">'value'</span>] &lt; <span className="text-orange-300">0</span>:<br/>
-              &nbsp;&nbsp;&nbsp;&nbsp;record[<span className="text-green-300">'flag'</span>] = <span className="text-green-300">'invalid'</span><br/>
-              &nbsp;&nbsp;&nbsp;&nbsp;record[<span className="text-green-300">'value'</span>] = <span className="text-blue-300">None</span><br/>
-              &nbsp;&nbsp;<span className="text-purple-400">return</span> record
-           </div>
-           <div className="bg-slate-800 p-2 border-t border-slate-700 flex justify-between items-center">
-              <span className="text-[10px] text-slate-500">Ln 6, Col 1</span>
-              <button className="text-[10px] text-green-400 hover:text-green-300 flex items-center gap-1"><Play className="w-3 h-3" /> Test Run</button>
-           </div>
-        </div>
-
-        <ConfigSection title="依赖管理" icon={Box}>
-           <input type="text" placeholder="pip install (e.g., numpy pandas)" className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-300" />
-        </ConfigSection>
-     </div>
-  );
-
-  // 6. Transform: LLM
-  const renderLLMConfig = () => (
-     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300">
-        <ConfigSection title="模型设定" icon={Bot}>
-           <select className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200 mb-2">
-              <option>DeepSeek-Coder-33B</option>
-              <option>Qwen-72B-Chat</option>
-              <option>GPT-4o (Azure)</option>
-           </select>
-           <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 w-16">Temperature</span>
-              <input type="range" className="flex-1 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500" />
-              <span className="text-xs text-slate-300 w-6">0.1</span>
-           </div>
-        </ConfigSection>
-
-        <ConfigSection title="Prompt 编排" icon={Terminal}>
-           <div className="bg-slate-900 border border-slate-600 rounded p-2 h-40 overflow-auto custom-scrollbar">
-              <div className="text-[10px] text-slate-500 mb-1">SYSTEM PROMPT</div>
-              <textarea className="w-full bg-transparent border-none text-xs text-slate-300 font-mono focus:ring-0 resize-none h-full" defaultValue="You are a data cleaning expert. Extract chemical entities from the input text and format them as JSON."></textarea>
-           </div>
-        </ConfigSection>
-
-        <MCPSelector label="推理后端" category="计算分析" />
-     </div>
-  );
-
-  // 7. Model: Embedding
-  const renderEmbeddingConfig = () => (
-     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300">
-        <ConfigSection title="Embedding 模型" icon={Layers}>
-           <select className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200">
-              <option>BAAI/bge-m3 (Multilingual)</option>
-              <option>OpenAI text-embedding-3-large</option>
-              <option>Jina-Embeddings-v2</option>
-           </select>
-           <div className="bg-slate-900/50 p-2 rounded border border-slate-700 text-[10px] text-slate-400 space-y-1 mt-2">
-              <div className="flex justify-between"><span>Dimensions:</span> <span className="text-slate-200">1024</span></div>
-              <div className="flex justify-between"><span>Max Tokens:</span> <span className="text-slate-200">8192</span></div>
-           </div>
-        </ConfigSection>
-
-        <ConfigSection title="处理策略" icon={Settings2}>
-           <div className="space-y-3">
-              <div>
-                 <label className="block text-xs text-slate-500 mb-1">Batch Size</label>
-                 <input type="number" defaultValue="32" className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200" />
-              </div>
-              <label className="flex items-center gap-2 text-xs text-slate-300">
-                 <input type="checkbox" defaultChecked className="rounded bg-slate-800 border-slate-600" />
-                 Normalize Embeddings
-              </label>
-           </div>
-        </ConfigSection>
-        
-        <MCPSelector label="向量化服务" category="计算分析" />
-     </div>
-  );
-
-  // 8. Model: NER
-  const renderNERConfig = () => (
-     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300">
-        <ConfigSection title="NER 模型" icon={Cpu}>
-           <select className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200">
-              <option>BERT-Base-Chinese-NER</option>
-              <option>SciBERT-Chemistry</option>
-           </select>
-        </ConfigSection>
-
-        <ConfigSection title="实体类型定义" icon={ListFilter}>
-           <div className="flex flex-wrap gap-2">
-              {['Chemical', 'Location', 'Method', 'Date', 'Concentration'].map(tag => (
-                 <span key={tag} className="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-[10px] text-slate-300 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-green-500" /> {tag}
-                 </span>
-              ))}
-              <button className="px-2 py-1 rounded border border-dashed border-slate-600 text-[10px] text-slate-500 hover:text-white">+ Add</button>
-           </div>
-        </ConfigSection>
-        
-        <MCPSelector label="推理服务" category="计算分析" />
-     </div>
-  );
-
-  // 9. Sink: Vector DB
-  const renderVectorDBConfig = () => (
-     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300">
-        <ConfigSection title="Milvus 连接" icon={HardDrive}>
-           <div className="grid grid-cols-2 gap-3">
-              <input type="text" placeholder="Host" defaultValue="192.168.1.104" className="bg-slate-900 border border-slate-600 rounded p-2 text-xs" />
-              <input type="text" placeholder="Port" defaultValue="19530" className="bg-slate-900 border border-slate-600 rounded p-2 text-xs" />
-           </div>
-           <div>
-              <label className="block text-xs text-slate-500 mb-1">Collection Name</label>
-              <input type="text" defaultValue="pollutant_knowledge_v1" className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200" />
-           </div>
-        </ConfigSection>
-
-        <ConfigSection title="索引参数" icon={Settings2}>
-           <div>
-              <label className="block text-xs text-slate-500 mb-1">Index Type</label>
-              <select className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200">
-                 <option>IVF_FLAT</option>
-                 <option>IVF_SQ8</option>
-                 <option>HNSW (Recommended)</option>
-              </select>
-           </div>
-           <div className="mt-2">
-              <label className="block text-xs text-slate-500 mb-1">Metric Type</label>
-              <select className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200">
-                 <option>L2 (Euclidean)</option>
-                 <option>IP (Inner Product)</option>
-                 <option>COSINE</option>
-              </select>
-           </div>
-        </ConfigSection>
-
-        <MCPSelector label="向量写入器" category="数据检索" />
-     </div>
-  );
-
-  // 10. Sink: KG
-  const renderKGConfig = () => (
-     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300">
-        <ConfigSection title="图数据库 (NebulaGraph)" icon={Share2}>
-           <div className="space-y-3">
-              <input type="text" placeholder="Graph Space Name" defaultValue="pollutants" className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-xs text-slate-200" />
-              <div className="grid grid-cols-2 gap-3">
-                 <input type="text" placeholder="User" defaultValue="root" className="bg-slate-900 border border-slate-600 rounded p-2 text-xs" />
-                 <input type="password" placeholder="Pwd" defaultValue="*****" className="bg-slate-900 border border-slate-600 rounded p-2 text-xs" />
-              </div>
-           </div>
-        </ConfigSection>
-
-        <ConfigSection title="本体映射 (Ontology)" icon={Network}>
-           <div className="bg-slate-900/50 rounded border border-slate-700 p-2 space-y-2">
-              <div className="flex items-center gap-2 text-[10px]">
-                 <div className="bg-blue-900/30 text-blue-300 px-1 rounded">Subject</div>
-                 <ArrowRight className="w-3 h-3 text-slate-500" />
-                 <div className="text-slate-300">:Tag(name)</div>
-              </div>
-              <div className="flex items-center gap-2 text-[10px]">
-                 <div className="bg-purple-900/30 text-purple-300 px-1 rounded">Predicate</div>
-                 <ArrowRight className="w-3 h-3 text-slate-500" />
-                 <div className="text-slate-300">-[RELATION]-></div>
-              </div>
-              <div className="flex items-center gap-2 text-[10px]">
-                 <div className="bg-green-900/30 text-green-300 px-1 rounded">Object</div>
-                 <ArrowRight className="w-3 h-3 text-slate-500" />
-                 <div className="text-slate-300">:Entity(id)</div>
-              </div>
-           </div>
-           <button className="w-full mt-2 text-[10px] text-blue-400 border border-blue-900/50 bg-blue-900/10 py-1 rounded hover:bg-blue-900/20">
-              Open Schema Editor
-           </button>
-        </ConfigSection>
-
-        <MCPSelector label="图谱写入器" category="知识查询" />
-     </div>
-  );
-
-  // --- Palette Item Handler ---
-  const handlePaletteClick = (type: OperatorType) => {
-    setSelectedNodeId(null); // Deselect canvas node
-    setPreviewOperator(type); // Set preview mode
-  };
-
-  const renderPaletteItem = (label: string, icon: any, type: OperatorType, colorClass: string) => (
-    <div 
-      onClick={() => handlePaletteClick(type)}
-      className={`flex items-center gap-2 px-2 py-2 rounded cursor-pointer text-xs text-slate-300 transition-all border border-transparent 
-        ${previewOperator === type ? 'bg-slate-700 border-slate-500 text-white' : 'hover:bg-slate-700 hover:border-slate-600'}
-      `}
-    >
-       {React.createElement(icon, { className: `w-3.5 h-3.5 ${colorClass}` })} {label}
-    </div>
-  );
-
-  return (
-    <div className="h-full flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
-       <div className="flex flex-1 overflow-hidden gap-0 bg-slate-900 border border-slate-700 rounded-lg">
-          
-          {/* 1. Left: Operator Palette */}
-          <div className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col shrink-0">
-             <div className="p-3 border-b border-slate-700 text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <GripVertical className="w-3.5 h-3.5" /> 算子库 (Operators)
-             </div>
-             <div className="p-3 space-y-4 overflow-y-auto custom-scrollbar">
-                <div>
-                   <div className="text-[10px] text-slate-500 mb-2 font-bold uppercase tracking-wider">I/O & Source</div>
-                   <div className="space-y-1">
-                      {renderPaletteItem('结构化数据 (JDBC)', Database, 'source_jdbc', 'text-blue-400')}
-                      {renderPaletteItem('对象存储 (S3)', FileJson, 'source_s3', 'text-yellow-400')}
-                      {renderPaletteItem('知识图谱写入', Share2, 'sink_kg', 'text-pink-400')}
-                      {renderPaletteItem('向量库写入', HardDrive, 'sink_vec', 'text-green-400')}
-                   </div>
-                </div>
-                <div>
-                   <div className="text-[10px] text-slate-500 mb-2 font-bold uppercase tracking-wider">Transform</div>
-                   <div className="space-y-1">
-                      {renderPaletteItem('字段映射 (Mapping)', TableProperties, 'trans_mapping', 'text-purple-400')}
-                      {renderPaletteItem('Python 脚本', Code, 'trans_python', 'text-pink-400')}
-                      {renderPaletteItem('OCR 提取', FileText, 'trans_ocr', 'text-cyan-400')}
-                      {renderPaletteItem('智能清洗 (LLM)', Wand2, 'trans_llm', 'text-orange-400')}
-                   </div>
-                </div>
-                <div>
-                   <div className="text-[10px] text-slate-500 mb-2 font-bold uppercase tracking-wider">AI Model</div>
-                   <div className="space-y-1">
-                      {renderPaletteItem('文本向量化', Layers, 'model_embedding', 'text-blue-400')}
-                      {renderPaletteItem('实体关系抽取', Network, 'model_ner', 'text-indigo-400')}
-                   </div>
-                </div>
-             </div>
-          </div>
-
-          {/* 2. Center: Canvas */}
-          <div 
-             className="flex-1 bg-slate-900 relative overflow-auto bg-[url('https://www.transparenttextures.com/patterns/graphy.png')] bg-opacity-20"
-             onClick={() => { setSelectedNodeId(null); setPreviewOperator(null); }}
-          >
-             {/* Background Grid */}
-             <div className="absolute inset-0 pointer-events-none opacity-10 bg-[radial-gradient(#475569_1px,transparent_1px)] [background-size:20px_20px]"></div>
-
-             {/* SVG Connections */}
-             <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                <defs>
-                   <marker id="arrow-pipeline" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
-                   </marker>
-                </defs>
-                <path d="M 210 132 L 280 132" stroke="#475569" strokeWidth="2" markerEnd="url(#arrow-pipeline)" fill="none" />
-                <path d="M 440 132 L 510 132" stroke="#475569" strokeWidth="2" markerEnd="url(#arrow-pipeline)" fill="none" />
-                <path d="M 670 132 L 740 132" stroke="#475569" strokeWidth="2" markerEnd="url(#arrow-pipeline)" fill="none" />
-                <path d="M 900 132 L 970 132" stroke="#475569" strokeWidth="2" markerEnd="url(#arrow-pipeline)" fill="none" />
-             </svg>
-
-             {/* Nodes */}
-             <div className="relative w-full h-full p-10">
-                {initialPipelineNodes.map(node => (
-                   <div 
-                      key={node.id}
-                      onClick={(e) => { e.stopPropagation(); setSelectedNodeId(node.id); setPreviewOperator(null); }}
-                      style={{ left: node.x, top: node.y }}
-                      className={`absolute w-40 p-3 rounded-lg border shadow-lg cursor-pointer transition-all hover:scale-105 z-10 flex flex-col gap-2 ${
-                         selectedNodeId === node.id 
-                           ? 'bg-slate-800 border-blue-500 ring-2 ring-blue-500/50 shadow-blue-900/50' 
-                           : 'bg-slate-800 border-slate-600 hover:border-slate-500'
-                      }`}
-                   >
-                      <div className="flex items-center gap-2">
-                         <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${
-                            node.type.startsWith('source') ? 'bg-blue-900/50 text-blue-400' :
-                            node.type.startsWith('trans') ? 'bg-purple-900/50 text-purple-400' :
-                            node.type === 'trans_python' ? 'bg-pink-900/50 text-pink-400' :
-                            node.type.startsWith('model') ? 'bg-indigo-900/50 text-indigo-400' :
-                            'bg-green-900/50 text-green-400'
-                         }`}>
-                            {node.type === 'source_s3' && <FileJson className="w-3.5 h-3.5" />}
-                            {node.type === 'trans_ocr' && <Table className="w-3.5 h-3.5" />}
-                            {node.type === 'trans_python' && <Code className="w-3.5 h-3.5" />}
-                            {node.type === 'model_embedding' && <Layers className="w-3.5 h-3.5" />}
-                            {node.type === 'sink_vec' && <Database className="w-3.5 h-3.5" />}
-                         </div>
-                         <div className="flex flex-col overflow-hidden">
-                            <div className="text-[10px] text-slate-500 uppercase font-bold leading-none mb-0.5">{node.type.split('_')[0]}</div>
-                            <div className="text-xs font-bold text-slate-200 truncate leading-none">{node.label}</div>
-                         </div>
-                      </div>
-                      
-                      {/* Node specific info */}
-                      {node.desc && (
-                         <div className="text-[9px] text-slate-400 leading-tight border-t border-slate-700/50 pt-1.5 mt-0.5">
-                            {node.desc}
-                         </div>
-                      )}
-
-                      {/* Status Indicator */}
-                      {node.status === 'processing' && (
-                         <div className="h-1 bg-slate-700 rounded-full overflow-hidden w-full mt-1">
-                            <div className="h-full bg-blue-500 animate-progress w-2/3"></div>
-                         </div>
-                      )}
-                      {node.status === 'ready' && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]"></div>}
-                   </div>
-                ))}
-             </div>
-          </div>
-
-          {/* 3. Right: Enhanced Configuration Panel (The "Next Layer") */}
-          <div className="w-[450px] bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 shadow-2xl z-20">
-             {/* Header */}
-             <div className="h-14 border-b border-slate-700 flex justify-between items-center px-5 bg-slate-800 shrink-0">
-                <div className="overflow-hidden">
-                   <h3 className="text-sm font-bold text-slate-100 truncate">{activeLabel}</h3>
-                   <div className="text-xs text-slate-500 font-mono flex items-center gap-2">
-                      {selectedNodeId && <span className="bg-slate-900 px-1.5 rounded">ID: {selectedNodeId}</span>}
-                      {activeType && <span>Type: {activeType}</span>}
-                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                   <button className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors" title="Settings">
-                      <Settings2 className="w-4 h-4" />
-                   </button>
-                   <button className="p-1.5 bg-blue-600 hover:bg-blue-500 rounded text-white shadow-lg shadow-blue-900/50 transition-colors" title="Run Node">
-                      <Play className="w-4 h-4 fill-current" />
-                   </button>
-                </div>
-             </div>
-
-             {/* Dynamic Content Area */}
-             <div className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-[#111827]">
-                {activeType === 'source_s3' && renderS3Config()}
-                {activeType === 'source_jdbc' && renderJDBCConfig()}
-                
-                {activeType === 'trans_ocr' && renderOCRConfig()}
-                {activeType === 'trans_mapping' && renderMappingConfig()}
-                {activeType === 'trans_python' && renderPythonConfig()}
-                {activeType === 'trans_llm' && renderLLMConfig()}
-                
-                {activeType === 'model_embedding' && renderEmbeddingConfig()}
-                {activeType === 'model_ner' && renderNERConfig()}
-                
-                {activeType === 'sink_vec' && renderVectorDBConfig()}
-                {activeType === 'sink_kg' && renderKGConfig()}
-
-                {!activeType && (
-                   <div className="h-full flex flex-col items-center justify-center text-slate-600">
-                      <MousePointer2 className="w-12 h-12 mb-3 opacity-20" />
-                      <p className="text-center">请在左侧点击算子或在画布中选择节点<br/>进行工作流配置与 MCP 绑定</p>
-                   </div>
-                )}
-             </div>
-
-             {/* Footer Status */}
-             <div className="h-10 border-t border-slate-700 bg-slate-800 flex items-center justify-between px-4 text-[10px] text-slate-500 shrink-0">
-                <div className="flex items-center gap-2">
-                   <div className={`w-1.5 h-1.5 rounded-full ${activeType ? 'bg-green-500' : 'bg-slate-500'}`}></div>
-                   Node Service: {activeType ? 'Ready' : 'Idle'}
-                </div>
-                {selectedNodeId && (
-                   <button className="flex items-center gap-1 hover:text-white transition-colors">
-                      <Save className="w-3 h-3" /> Save Config
-                   </button>
-                )}
-             </div>
-          </div>
-       </div>
-    </div>
-  );
-};
-
-const MCPRegistry = () => {
-  return (
-    <div className="h-full flex flex-col space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-       <div className="bg-blue-900/10 border border-blue-500/20 p-4 rounded-lg flex gap-4 items-start">
-          <Terminal className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
-          <div>
-             <h4 className="text-sm font-bold text-blue-100 mb-1">MCP 工具注册中心 (Model Context Protocol)</h4>
-             <p className="text-xs text-blue-300/80 leading-relaxed">
-                管理 LLM 与物理实验室交互的标准协议接口。定义工具的 Schema、权限范围及执行方式，使智能体能够安全地调用外部工具、查询数据库或控制实验设备。
-             </p>
-          </div>
-       </div>
-
-       <div className="flex-1 overflow-hidden bg-slate-800 border border-slate-700 rounded-lg flex flex-col">
-          <div className="grid grid-cols-12 border-b border-slate-700 bg-slate-900/50 text-xs font-medium text-slate-400">
-             <div className="col-span-3 p-3 pl-4">工具标识 (ID / Name)</div>
-             <div className="col-span-2 p-3">类型</div>
-             <div className="col-span-4 p-3">功能描述</div>
-             <div className="col-span-2 p-3">权限级别</div>
-             <div className="col-span-1 p-3 text-right pr-4">配置</div>
-          </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-             {mcpTools.map(tool => (
-               <div key={tool.id} className="grid grid-cols-12 border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors text-sm group relative">
-                  <div className="col-span-3 p-3 pl-4">
-                     <div className="font-medium text-slate-200">{tool.displayName}</div>
-                     <div className="text-[10px] font-mono text-blue-400 mt-0.5 flex items-center gap-1">
-                        <Box className="w-3 h-3 opacity-50" />
-                        {tool.name}
+         <div className="flex-1 flex overflow-hidden">
+            {/* Canvas */}
+            <div className="flex-1 bg-[#0f172a] relative overflow-auto p-10 cursor-grab">
+               <div className="absolute inset-0 z-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#475569 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+               
+               <div className="flex flex-wrap gap-y-12 gap-x-8 max-w-5xl mx-auto justify-center">
+                  {nodes.map((node, index) => (
+                     <div key={node.id} className="relative group">
+                        <div 
+                           onClick={() => setSelectedNode(node)}
+                           className={`w-40 p-4 rounded-xl border-2 transition-all cursor-pointer relative z-10 flex flex-col items-center gap-2 shadow-lg hover:-translate-y-1 ${
+                              selectedNode?.id === node.id 
+                                 ? 'bg-slate-800 border-blue-500 shadow-blue-500/20' 
+                                 : 'bg-slate-800 border-slate-700 hover:border-slate-500'
+                           }`}
+                        >
+                           <div className={`p-2 rounded-full ${
+                              node.type === 'ai' ? 'bg-purple-500/20 text-purple-400' :
+                              node.type === 'input' ? 'bg-green-500/20 text-green-400' :
+                              node.type === 'output' ? 'bg-orange-500/20 text-orange-400' :
+                              node.type === 'db' ? 'bg-yellow-500/20 text-yellow-400' :
+                              'bg-blue-500/20 text-blue-400'
+                           }`}>
+                              {node.type === 'ai' && <BrainCircuit className="w-5 h-5" />}
+                              {node.type === 'input' && <FileDigit className="w-5 h-5" />}
+                              {node.type === 'output' && <HardDrive className="w-5 h-5" />}
+                              {node.type === 'db' && <Database className="w-5 h-5" />}
+                              {node.type === 'process' && <Scan className="w-5 h-5" />}
+                              {node.type === 'filter' && <ListFilter className="w-5 h-5" />}
+                              {node.type === 'code' && <Code className="w-5 h-5" />}
+                              {node.type === 'check' && <CheckSquare className="w-5 h-5" />}
+                              {node.type === 'test' && <TestTube className="w-5 h-5" />}
+                           </div>
+                           <div className="text-center">
+                              <div className="text-xs font-bold text-slate-200">{node.label}</div>
+                              <div className="text-[10px] text-slate-500 mt-0.5 uppercase">{node.type} NODE</div>
+                           </div>
+                           
+                           {/* Connecting Line (Visual Mock) */}
+                           {index < nodes.length - 1 && (
+                              <div className="absolute top-1/2 -right-10 w-8 h-0.5 bg-slate-600 z-0"></div>
+                           )}
+                           {index < nodes.length - 1 && (
+                              <div className="absolute top-1/2 -right-10 transform translate-x-1.5 -translate-y-1">
+                                 <div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-slate-600 border-b-[4px] border-b-transparent"></div>
+                              </div>
+                           )}
+                        </div>
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-900 px-1 text-[10px] text-slate-600 font-mono z-20">Step {index + 1}</div>
                      </div>
-                  </div>
-                  <div className="col-span-2 p-3 text-slate-400 flex items-center gap-1.5">
-                     {tool.type === '数据检索' && <Database className="w-3.5 h-3.5 text-blue-400" />}
-                     {tool.type === '设备控制' && <Zap className="w-3.5 h-3.5 text-yellow-400" />}
-                     {tool.type === '计算分析' && <Cpu className="w-3.5 h-3.5 text-purple-400" />}
-                     {tool.type === '系统集成' && <Network className="w-3.5 h-3.5 text-green-400" />}
-                     {tool.type === '知识查询' && <Share2 className="w-3.5 h-3.5 text-pink-400" />}
-                     {tool.type === '文档处理' && <FileJson className="w-3.5 h-3.5 text-slate-400" />}
-                     <span>{tool.type}</span>
-                  </div>
-                  <div className="col-span-4 p-3 text-slate-300 text-xs leading-relaxed flex items-center">{tool.desc}</div>
-                  <div className="col-span-2 p-3 flex items-center">
-                     <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
-                        tool.permission === 'Admin' ? 'bg-red-900/20 text-red-400 border-red-800' :
-                        tool.permission === 'Read-Only' ? 'bg-green-900/20 text-green-400 border-green-800' :
-                        tool.permission === 'Execute' ? 'bg-purple-900/20 text-purple-400 border-purple-800' :
-                        'bg-blue-900/20 text-blue-400 border-blue-800'
-                     }`}>
-                        {tool.permission}
-                     </span>
-                  </div>
-                  <div className="col-span-1 p-3 text-right pr-4 flex items-center justify-end">
-                     <button className="text-slate-500 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded border border-transparent hover:border-slate-600 transition-all">
-                        <Settings2 className="w-4 h-4" />
-                     </button>
-                  </div>
-                  
-                  {/* Schema Preview on Hover */}
-                  <div className="absolute left-0 right-0 top-full hidden group-hover:block z-20 animate-in fade-in slide-in-from-top-1 duration-200">
-                     <div className="bg-slate-950 border-y border-slate-700 p-3 shadow-xl">
-                        <div className="flex items-start gap-2">
-                           <FileCode className="w-4 h-4 text-slate-500 mt-0.5" />
-                           <div className="flex-1">
-                              <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Parameters Schema</div>
-                              <code className="text-xs font-mono text-green-300 block bg-slate-900/50 p-2 rounded border border-slate-800">
-                                 {tool.schema}
-                              </code>
+                  ))}
+               </div>
+            </div>
+
+            {/* Details Panel */}
+            <div className="w-80 bg-slate-800 border-l border-slate-700 p-6 flex flex-col">
+               <h4 className="text-sm font-bold text-slate-200 mb-6 flex items-center gap-2">
+                  <Settings2 className="w-4 h-4" /> 节点配置
+               </h4>
+               
+               {selectedNode ? (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">节点名称</label>
+                        <input type="text" value={selectedNode.label} readOnly className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-slate-200" />
+                     </div>
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">功能描述</label>
+                        <textarea readOnly value={selectedNode.desc} className="w-full h-24 bg-slate-900 border border-slate-600 rounded p-2 text-sm text-slate-300 resize-none"></textarea>
+                     </div>
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">参数配置</label>
+                        <div className="bg-slate-900 rounded border border-slate-600 p-2 space-y-2">
+                           <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-400">Timeout</span>
+                              <span className="text-slate-200">30s</span>
+                           </div>
+                           <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-400">Retry</span>
+                              <span className="text-slate-200">3 times</span>
+                           </div>
+                           <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-400">Log Level</span>
+                              <span className="text-blue-400">DEBUG</span>
                            </div>
                         </div>
                      </div>
                   </div>
-               </div>
-             ))}
-          </div>
-          <div className="p-3 bg-slate-900 border-t border-slate-700 flex justify-center">
-             <button className="text-xs text-slate-400 hover:text-white flex items-center gap-2 px-4 py-2 hover:bg-slate-800 rounded transition-colors">
-                <Plus className="w-3.5 h-3.5" /> 注册新工具 (Register Tool)
-             </button>
-          </div>
-       </div>
-    </div>
-  );
-};
+               ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-center">
+                     <Binary className="w-10 h-10 mb-2 opacity-20" />
+                     <p className="text-sm">点击左侧节点<br/>查看详细配置</p>
+                  </div>
+               )}
+            </div>
+         </div>
+      </div>
+   )
+}
 
+const DataProcessingPanel = () => {
+   const [editingPipeline, setEditingPipeline] = useState<string | null>(null);
+
+   if (editingPipeline) {
+      return <PipelineWorkflowDesigner pipelineId={editingPipeline} onBack={() => setEditingPipeline(null)} />;
+   }
+
+   return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+         <div className="grid grid-cols-2 gap-4">
+             {dataPipelines.map(pipeline => (
+                <div key={pipeline.id} className="bg-slate-800 border border-slate-700 rounded-lg p-5 hover:border-blue-500/50 transition-colors">
+                   <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-3">
+                         <div className={`p-2 rounded-lg ${pipeline.status === 'active' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-700/50 text-slate-400'}`}>
+                            <Database className="w-5 h-5" />
+                         </div>
+                         <div>
+                            <div className="font-bold text-slate-200">{pipeline.name}</div>
+                            <div className="text-xs text-slate-500">{pipeline.type}</div>
+                         </div>
+                      </div>
+                      <div className={`px-2 py-1 rounded text-xs font-medium border ${
+                         pipeline.status === 'active' ? 'bg-green-900/30 text-green-400 border-green-700/50' : 'bg-yellow-900/30 text-yellow-400 border-yellow-700/50'
+                      }`}>
+                         {pipeline.status === 'active' ? 'RUNNING' : 'PAUSED'}
+                      </div>
+                   </div>
+                   <div className="text-xs text-slate-400 mb-4">{pipeline.desc}</div>
+                   <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
+                      <div className="text-xs text-slate-500 flex items-center gap-1">
+                         <Activity className="w-3 h-3" /> 吞吐量: <span className="text-slate-300 font-mono">{pipeline.tps}</span>
+                      </div>
+                      <button 
+                        onClick={() => setEditingPipeline(pipeline.id)}
+                        className="text-blue-400 hover:text-white text-xs flex items-center gap-1 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 hover:bg-blue-600 hover:border-blue-500 transition-all"
+                      >
+                         <Settings2 className="w-3 h-3" /> 管理流水线
+                      </button>
+                   </div>
+                </div>
+             ))}
+         </div>
+         
+         <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+            <h3 className="font-bold text-slate-200 mb-4 flex items-center gap-2">
+               <HardDrive className="w-5 h-5 text-purple-400" /> 数据存储与归档策略
+            </h3>
+            <div className="grid grid-cols-3 gap-6 text-sm">
+               <div className="bg-slate-900 p-4 rounded border border-slate-700">
+                  <div className="text-slate-500 mb-1">热数据 (Hot)</div>
+                  <div className="text-xl font-bold text-slate-200 mb-1">1.2 TB</div>
+                  <div className="text-xs text-green-400">Redis / Memcached</div>
+               </div>
+               <div className="bg-slate-900 p-4 rounded border border-slate-700">
+                  <div className="text-slate-500 mb-1">温数据 (Warm)</div>
+                  <div className="text-xl font-bold text-slate-200 mb-1">45 TB</div>
+                  <div className="text-xs text-blue-400">PostgreSQL / InfluxDB</div>
+               </div>
+               <div className="bg-slate-900 p-4 rounded border border-slate-700">
+                  <div className="text-slate-500 mb-1">冷数据 (Cold)</div>
+                  <div className="text-xl font-bold text-slate-200 mb-1">1.8 PB</div>
+                  <div className="text-xs text-purple-400">OSS Archive</div>
+               </div>
+            </div>
+         </div>
+      </div>
+   )
+}
+
+const DataConnectorPanel = () => {
+   return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+         <div className="grid grid-cols-2 gap-4">
+             {dataConnectors.map(conn => (
+                <div key={conn.id} className="bg-slate-800 border border-slate-700 rounded-lg p-5 hover:border-blue-500/50 transition-colors group">
+                   <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-3">
+                         <div className={`p-2 rounded-lg ${conn.status === 'active' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-700/50 text-slate-400'}`}>
+                            <Cable className="w-5 h-5" />
+                         </div>
+                         <div>
+                            <div className="font-bold text-slate-200">{conn.name}</div>
+                            <div className="text-xs text-slate-500">{conn.type}</div>
+                         </div>
+                      </div>
+                      <div className={`px-2 py-1 rounded text-xs font-medium border ${
+                         conn.status === 'active' ? 'bg-green-900/30 text-green-400 border-green-700/50' : 'bg-yellow-900/30 text-yellow-400 border-yellow-700/50'
+                      }`}>
+                         {conn.status === 'active' ? 'CONNECTED' : 'PAUSED'}
+                      </div>
+                   </div>
+                   <div className="text-xs text-slate-400 mb-4 h-8">{conn.desc}</div>
+                   <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 bg-slate-900/20 -mx-5 -mb-5 px-5 py-3 mt-auto">
+                      <div className="text-xs text-slate-500 font-mono truncate max-w-[150px]">
+                         {conn.endpoint}
+                      </div>
+                      <button className="text-blue-400 hover:text-white text-xs border border-blue-500/30 px-3 py-1.5 rounded hover:bg-blue-500/20 flex items-center gap-1">
+                         <Settings2 className="w-3 h-3" /> 配置
+                      </button>
+                   </div>
+                </div>
+             ))}
+             
+             {/* Add New Connector */}
+             <button className="border-2 border-dashed border-slate-700 rounded-lg p-5 flex flex-col items-center justify-center text-slate-500 hover:border-blue-500 hover:text-blue-400 transition-colors min-h-[160px]">
+                <Plug2 className="w-8 h-8 mb-2 opacity-50" />
+                <span className="font-medium text-sm">添加数据连接器</span>
+                <span className="text-xs mt-1">支持 SQL, MQTT, REST, FTP</span>
+             </button>
+         </div>
+      </div>
+   )
+}
+
+const DatasetPanel = () => {
+   const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
+
+   const openDataset = (id: string) => {
+      setSelectedDataset(id);
+   };
+
+   return (
+      <div className="h-full flex flex-col animate-in fade-in duration-300">
+         {selectedDataset ? (
+            <div className="absolute inset-0 z-50 bg-slate-900 flex flex-col">
+               <div className="h-14 border-b border-slate-700 bg-slate-800 px-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                     <div className="p-2 bg-blue-600 rounded-lg">
+                        <Table className="w-4 h-4 text-white" />
+                     </div>
+                     <div>
+                        <h3 className="font-bold text-slate-100">{datasets.find(d => d.id === selectedDataset)?.name}</h3>
+                        <div className="text-xs text-slate-400 flex gap-3">
+                           <span>ID: {selectedDataset}</span>
+                           <span>|</span>
+                           <span>Type: {datasets.find(d => d.id === selectedDataset)?.type}</span>
+                        </div>
+                     </div>
+                  </div>
+                  <button onClick={() => setSelectedDataset(null)} className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-white">
+                     <X className="w-6 h-6" />
+                  </button>
+               </div>
+               
+               <div className="flex-1 overflow-auto p-6">
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+                     <div className="p-3 bg-slate-900/50 border-b border-slate-700 flex justify-between">
+                        <span className="text-xs text-slate-500 uppercase font-bold tracking-wider pt-1">Data Preview (First 50 rows)</span>
+                        <button className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                           <RefreshCw className="w-3 h-3" /> 刷新数据
+                        </button>
+                     </div>
+                     <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm whitespace-nowrap">
+                           <thead className="bg-slate-900 text-slate-400 text-xs uppercase">
+                              <tr>
+                                 {mockDatasetContent[selectedDataset] && Object.keys(mockDatasetContent[selectedDataset][0]).map(key => (
+                                    <th key={key} className="px-6 py-3 font-medium border-b border-slate-700">{key}</th>
+                                 ))}
+                              </tr>
+                           </thead>
+                           <tbody className="divide-y divide-slate-700/50">
+                              {mockDatasetContent[selectedDataset] ? mockDatasetContent[selectedDataset].map((row, idx) => (
+                                 <tr key={idx} className="hover:bg-slate-700/30">
+                                    {Object.values(row).map((val: any, i) => (
+                                       <td key={i} className="px-6 py-3 text-slate-300 font-mono text-xs">{val}</td>
+                                    ))}
+                                 </tr>
+                              )) : (
+                                 <tr>
+                                    <td colSpan={5} className="p-8 text-center text-slate-500">
+                                       No preview data available for this dataset.
+                                    </td>
+                                 </tr>
+                              )}
+                           </tbody>
+                        </table>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+               {datasets.map(ds => (
+                  <div key={ds.id} onClick={() => openDataset(ds.id)} className="bg-slate-800 border border-slate-700 rounded-lg p-5 cursor-pointer hover:border-blue-500 hover:shadow-lg hover:shadow-blue-900/20 transition-all group flex flex-col h-[180px]">
+                     <div className="flex justify-between items-start mb-3">
+                        <div className="p-2.5 bg-slate-700/50 rounded-lg text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                           <TableProperties className="w-5 h-5" />
+                        </div>
+                        <div className={`text-[10px] px-2 py-0.5 rounded border ${
+                           ds.status === 'Live' ? 'text-green-400 border-green-500/30 bg-green-500/10' : 'text-slate-400 border-slate-600 bg-slate-700/30'
+                        }`}>
+                           {ds.status}
+                        </div>
+                     </div>
+                     <h4 className="font-bold text-slate-200 text-sm line-clamp-2 mb-2 group-hover:text-blue-300 transition-colors">{ds.name}</h4>
+                     
+                     <div className="mt-auto space-y-1.5 pt-3 border-t border-slate-700/50 text-xs text-slate-400">
+                        <div className="flex justify-between">
+                           <span>Rows:</span>
+                           <span className="font-mono text-slate-300">{ds.rows.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                           <span>Size:</span>
+                           <span className="font-mono text-slate-300">{ds.size}</span>
+                        </div>
+                        <div className="flex justify-between">
+                           <span>Updated:</span>
+                           <span>{ds.updated}</span>
+                        </div>
+                     </div>
+                  </div>
+               ))}
+               
+               {/* Add Dataset Card */}
+               <div className="border-2 border-dashed border-slate-700 rounded-lg flex flex-col items-center justify-center text-slate-500 hover:border-blue-500 hover:text-blue-400 transition-colors cursor-pointer h-[180px]">
+                   <Plus className="w-8 h-8 mb-2 opacity-50" />
+                   <span className="font-medium text-sm">注册数据集</span>
+               </div>
+            </div>
+         )}
+      </div>
+   )
+}
+
+const ModelConfigPanel = () => {
+   return (
+      <div className="animate-in fade-in duration-300 space-y-6">
+         <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+             <div className="p-4 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center">
+                <h3 className="font-bold text-slate-200 flex items-center gap-2">
+                   <BrainCircuit className="w-5 h-5 text-green-400" /> 已接入大模型 (LLM Registry)
+                </h3>
+                <button className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-500 flex items-center gap-1">
+                   <RefreshCw className="w-3 h-3" /> 刷新状态
+                </button>
+             </div>
+             <div className="p-0">
+                <table className="w-full text-left text-sm">
+                   <thead className="bg-slate-900/50 text-slate-400 text-xs uppercase">
+                      <tr>
+                         <th className="p-4 font-medium">模型名称</th>
+                         <th className="p-4 font-medium">供应商</th>
+                         <th className="p-4 font-medium">上下文窗口</th>
+                         <th className="p-4 font-medium">延迟</th>
+                         <th className="p-4 font-medium">状态</th>
+                         <th className="p-4 font-medium text-right">配置</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-700/50">
+                      {llmConfigs.map(model => (
+                         <tr key={model.id} className="hover:bg-slate-700/20 transition-colors">
+                            <td className="p-4 font-medium text-slate-200">{model.name}</td>
+                            <td className="p-4 text-slate-400">{model.provider}</td>
+                            <td className="p-4 text-slate-300 font-mono">{model.context}</td>
+                            <td className="p-4 text-slate-300 font-mono">{model.latency}</td>
+                            <td className="p-4">
+                               {model.status === 'connected' ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-700/50">
+                                     <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span> Connected
+                                  </span>
+                               ) : (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-400 border border-slate-600">
+                                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Offline
+                                  </span>
+                               )}
+                            </td>
+                            <td className="p-4 text-right">
+                               <button className="text-blue-400 hover:text-white text-xs border border-blue-500/30 px-3 py-1 rounded hover:bg-blue-600/20">
+                                  <Settings2 className="w-3.5 h-3.5" />
+                               </button>
+                            </td>
+                         </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+         </div>
+
+         <div className="grid grid-cols-2 gap-6">
+            <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+               <h3 className="font-bold text-slate-200 mb-4 flex items-center gap-2">
+                  <Key className="w-4 h-4 text-yellow-400" /> API 密钥管理
+               </h3>
+               <div className="space-y-4">
+                  <div>
+                     <label className="block text-xs text-slate-400 mb-1">DeepSeek API Key</label>
+                     <div className="flex gap-2">
+                        <input type="password" value="sk-xxxxxxxxxxxxxxxx" readOnly className="flex-1 bg-slate-900 border border-slate-600 rounded px-3 py-2 text-xs text-slate-400 font-mono" />
+                        <button className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded">更新</button>
+                     </div>
+                  </div>
+                  <div>
+                     <label className="block text-xs text-slate-400 mb-1">Aliyun DashScope Key</label>
+                     <div className="flex gap-2">
+                        <input type="password" value="sk-yyyyyyyyyyyyyyyy" readOnly className="flex-1 bg-slate-900 border border-slate-600 rounded px-3 py-2 text-xs text-slate-400 font-mono" />
+                        <button className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded">更新</button>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+               <h3 className="font-bold text-slate-200 mb-4 flex items-center gap-2">
+                  <Settings2 className="w-4 h-4 text-blue-400" /> 全局推理参数默认值
+               </h3>
+               <div className="space-y-4">
+                  <div>
+                     <div className="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Temperature</span>
+                        <span>0.7</span>
+                     </div>
+                     <input type="range" className="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500" value="70" readOnly />
+                  </div>
+                  <div>
+                     <div className="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Top P</span>
+                        <span>0.9</span>
+                     </div>
+                     <input type="range" className="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500" value="90" readOnly />
+                  </div>
+                  <div>
+                     <div className="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Max Tokens</span>
+                        <span>4096</span>
+                     </div>
+                     <input type="range" className="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500" value="50" readOnly />
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+   )
+}
 
 // --- Main Component ---
 
-const AIConfig: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'agents' | 'connectors' | 'processing' | 'mcp'>('agents');
+const AIConfigCorrected: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'agents' | 'capabilities' | 'pipelines' | 'connectors' | 'datasets' | 'models'>('pipelines');
   const [agents, setAgents] = useState<AgentConfig[]>(initialAgents);
+  const [showTopology, setShowTopology] = useState(false);
+
+  const handleViewTopology = (id: string) => {
+    setShowTopology(true);
+  };
+
+  if (showTopology) {
+     return <TaskTopology onBack={() => setShowTopology(false)} />;
+  }
 
   const tabs = [
-    { id: 'agents', label: '智能体编排', icon: Bot },
-    { id: 'connectors', label: '数据连接器', icon: Network },
-    { id: 'processing', label: '数据处理 (Pipeline)', icon: Workflow },
-    { id: 'mcp', label: 'MCP 工具集', icon: Terminal },
+    { id: 'pipelines', label: '数据流水线', icon: Activity },
+    { id: 'connectors', label: '数据连接器', icon: Cable },
+    { id: 'datasets', label: '数据集管理', icon: Database },
+    { id: 'agents', label: '智能体配置', icon: Bot },
+    { id: 'capabilities', label: '能力模块', icon: Box },
+    { id: 'models', label: '大模型配置', icon: Server },
   ];
 
   return (
@@ -910,27 +776,22 @@ const AIConfig: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold text-slate-100 mb-1 flex items-center gap-2">
             <Cpu className="w-6 h-6 text-blue-500" />
-            AI 基础设施与中台 (AI Platform)
+            AI 基础设施与中台配置
           </h2>
-          <p className="text-sm text-slate-400">全栈式 AI 操作系统：从数据连接、知识工程流水线到智能体编排与工具协议 (MCP) 管理。</p>
+          <p className="text-sm text-slate-400">管理智能体职责、数据流水线连接及底层大模型参数。</p>
         </div>
-        <div className="flex items-center gap-2">
-           <button className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 rounded text-sm transition-colors">
-              <Key className="w-4 h-4" /> API Keys
-           </button>
-           <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-medium transition-colors shadow-lg shadow-blue-900/50">
-              <Save className="w-4 h-4" /> 保存全局配置
-           </button>
-        </div>
+        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-medium transition-colors shadow-lg shadow-blue-900/50">
+           <Save className="w-4 h-4" /> 保存全局配置
+        </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-700 mb-6 shrink-0">
+      <div className="flex border-b border-slate-700 mb-6 shrink-0 overflow-x-auto">
          {tabs.map(tab => (
            <button
              key={tab.id}
              onClick={() => setActiveTab(tab.id as any)}
-             className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-all border-b-2 ${
+             className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-all border-b-2 whitespace-nowrap ${
                activeTab === tab.id 
                  ? 'border-blue-500 text-blue-400 bg-blue-500/5' 
                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
@@ -943,16 +804,20 @@ const AIConfig: React.FC = () => {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-hidden bg-slate-900/30 rounded-lg relative">
-         <div className="absolute inset-0 overflow-y-auto p-1 custom-scrollbar">
-            {activeTab === 'agents' && <AgentOrchestration agents={agents} setAgents={setAgents} />}
-            {activeTab === 'connectors' && <DataConnectors />}
-            {activeTab === 'processing' && <DataPipelineBuilder />}
-            {activeTab === 'mcp' && <MCPRegistry />}
-         </div>
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-900/30 rounded-lg p-1 relative">
+         {activeTab === 'pipelines' && <DataProcessingPanel />}
+         {activeTab === 'connectors' && <DataConnectorPanel />}
+         {activeTab === 'datasets' && <DatasetPanel />}
+         {activeTab === 'agents' && <AgentConfigPanel agents={agents} setAgents={setAgents} onViewTopology={handleViewTopology} />}
+         {activeTab === 'capabilities' && <CapabilityPanel />}
+         {activeTab === 'models' && <ModelConfigPanel />}
       </div>
     </div>
   );
 };
 
-export default AIConfig;
+export default AIConfigCorrected;
+// Add TestTube to imports
+function TestTube(props: any) {
+  return <FlaskConical {...props} />
+}

@@ -1,592 +1,536 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Plus, X, Settings, Database, Cpu, FlaskConical, Play, Save, GripHorizontal, ArrowRight, Beaker, FileDigit, Trash2, MousePointer2, Check, ChevronDown } from 'lucide-react';
-import { WorkflowNode, WorkflowEdge, NodeConfig } from '../../types';
+import React, { useState } from 'react';
+import { Plus, FolderKanban, Play, CheckCircle2, Clock, AlertOctagon, ArrowRight, Target, Database, FlaskConical, X, Save, Bot, Workflow, Settings2, Trash2, Cpu, Server, GitFork } from 'lucide-react';
+import { ResearchTask } from '../../types';
 
-// --- Mock Options for Configuration ---
-const PRESETS = {
-  devices: ['Q-TOF MS (高分辨质谱)', 'Auto-SPE (固相萃取)', 'LC-MS/MS (三重四极杆)', '微流控毒性芯片', '光化学反应釜', '离心机 (Centrifuge)', '恒温振荡器'],
-  algorithms: ['NTS Peak Picking v3', 'StructureID-Pro (RenDu)', 'RiskEval-AI (DeepSeek)', 'QSAR-Tox-Predict', 'Meta-Frag', 'Retension Time Predictor', 'Isotope Pattern Scorer'],
-  dataSources: ['长江流域监测库 (2024)', '饮用水源地基线数据', 'PubChem 镜像库', 'EPA ToxCast', '上传的本地批次', '实时传感器流 (IoT)', '历史实验归档'],
-  materials: ['甲醇 (Methanol)', '乙腈 (Acetonitrile)', '固相萃取柱 (HLB)', '斑马鱼胚胎', '质谱调谐液'],
+// Mock Data Resources
+const DATA_SOURCES = [
+  { id: 'ds1', name: 'Q-TOF MS 实时流 (Stream-01)', type: 'stream', size: 'Real-time' },
+  { id: 'ds2', name: '长江口定点采样数据_202405.csv', type: 'file', size: '450MB' },
+  { id: 'ds3', name: '历史非靶向筛查库 (LIMS-DB)', type: 'db', size: '12TB' },
+  { id: 'ds4', name: 'EPA ToxCast 离线库', type: 'db', size: '2.4GB' },
+];
+
+// Mock Agents
+const AGENTS = [
+  { id: 'ag1', name: '新污染物发现智能体', role: 'Discovery', desc: '负责NTS数据特征提取' },
+  { id: 'ag2', name: '结构解析智能体', role: 'Analysis', desc: '负责分子式与结构推断' },
+  { id: 'ag3', name: '风险评估智能体', role: 'Risk', desc: '负责毒性预测与法规比对' },
+  { id: 'ag4', name: '实验调度智能体', role: 'Control', desc: '负责设备指令下发' },
+];
+
+// Mock Tools/Devices for Workflow
+const RESOURCES = {
+  device: [
+    { id: 'dev1', name: 'Auto-Sampler (自动进样器)' },
+    { id: 'dev2', name: 'Q-TOF MS (高分辨质谱)' },
+    { id: 'dev3', name: 'Auto-SPE (固相萃取仪)' },
+    { id: 'dev4', name: '微流控毒性芯片' },
+  ],
+  algorithm: [
+    { id: 'alg1', name: 'NTS-PeakPick (峰提取算法)' },
+    { id: 'alg2', name: 'RenDu-Chem (结构解析模型)' },
+    { id: 'alg3', name: 'QSAR-Tox (毒性预测模型)' },
+    { id: 'alg4', name: 'AOP-Sim (高级氧化仿真)' },
+  ]
 };
 
-// --- Helper Components ---
+// Initial Tasks (Keep existing)
+const initialTasks: ResearchTask[] = [
+  {
+    id: 'Task-2024-X09',
+    name: '长江流域典型抗生素替代品筛查',
+    priority: 'High',
+    stage: 'structure_id',
+    stageLabel: '结构解析与确证',
+    progress: 45,
+    status: 'running',
+    startTime: '2024-05-20 08:30',
+    estimatedEndTime: '2024-05-21 14:00',
+    owner: 'Dr. Li'
+  },
+  {
+    id: 'Task-2024-Y12',
+    name: '新型全氟化合物(PFASs)光降解机理研究',
+    priority: 'Medium',
+    stage: 'governance_sim',
+    stageLabel: '光解路径仿真模拟',
+    progress: 78,
+    status: 'running',
+    startTime: '2024-05-19 10:00',
+    estimatedEndTime: '2024-05-20 18:00',
+    owner: 'AI Agent-03'
+  },
+  {
+    id: 'Task-2024-Z05',
+    name: '饮用水源地微囊藻毒素变异体监测',
+    priority: 'High',
+    stage: 'nts_screening',
+    stageLabel: '非靶向筛查数据清洗',
+    progress: 12,
+    status: 'error',
+    startTime: '2024-05-20 13:15',
+    estimatedEndTime: 'Unknown',
+    owner: 'Auto-Sampler'
+  }
+];
 
-const MultiSelect = ({ options, value, onChange, placeholder }: { 
-  options: string[], 
-  value: string | string[] | undefined, 
-  onChange: (val: string[]) => void, 
-  placeholder: string 
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+interface WorkflowNodeData {
+  id: string;
+  name: string;
+  type: 'device' | 'algorithm';
+  resourceId: string;
+  inputData?: string;
+}
 
-  // Ensure value is array
-  const selected = Array.isArray(value) ? value : (value ? [value] : []);
+const ProjectManagement: React.FC = () => {
+  const [view, setView] = useState<'list' | 'create'>('list');
+  const [tasks, setTasks] = useState<ResearchTask[]>(initialTasks);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+  // Form State
+  const [formData, setFormData] = useState({
+    name: '',
+    priority: 'Medium' as 'High' | 'Medium' | 'Low',
+    mediums: [] as string[],
+    selectedDataSources: [] as string[],
+    selectedAgents: [] as string[],
+  });
+
+  // Workflow Builder State
+  const [workflowNodes, setWorkflowNodes] = useState<WorkflowNodeData[]>([]);
+  const [isAddingNode, setIsAddingNode] = useState(false);
+  const [newNode, setNewNode] = useState<Partial<WorkflowNodeData>>({ type: 'device' });
+
+  // --- Handlers ---
+
+  const handleMediumToggle = (medium: string) => {
+    setFormData(prev => {
+      const exists = prev.mediums.includes(medium);
+      return {
+        ...prev,
+        mediums: exists ? prev.mediums.filter(m => m !== medium) : [...prev.mediums, medium]
+      };
+    });
+  };
+
+  const toggleSelection = (listKey: 'selectedDataSources' | 'selectedAgents', id: string) => {
+    setFormData(prev => {
+      const list = prev[listKey];
+      const exists = list.includes(id);
+      return {
+        ...prev,
+        [listKey]: exists ? list.filter(item => item !== id) : [...list, id]
+      };
+    });
+  };
+
+  const handleAddNode = () => {
+    if (!newNode.name || !newNode.resourceId) return;
+    const node: WorkflowNodeData = {
+      id: `node-${Date.now()}`,
+      name: newNode.name,
+      type: newNode.type as 'device' | 'algorithm',
+      resourceId: newNode.resourceId,
+      inputData: newNode.inputData
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    setWorkflowNodes([...workflowNodes, node]);
+    setIsAddingNode(false);
+    setNewNode({ type: 'device' });
+  };
 
-  const toggleSelection = (option: string) => {
-    const newSelection = selected.includes(option)
-      ? selected.filter(item => item !== option)
-      : [...selected, option];
-    onChange(newSelection);
+  const removeNode = (id: string) => {
+    setWorkflowNodes(workflowNodes.filter(n => n.id !== id));
+  };
+
+  const handleCreateTask = () => {
+    if (!formData.name) return;
+
+    const newTask: ResearchTask = {
+      id: `Task-2024-${Math.floor(Math.random() * 1000 + 1000)}`,
+      name: formData.name,
+      priority: formData.priority,
+      stage: 'sample_prep',
+      stageLabel: '初始化流程',
+      progress: 0,
+      status: 'queued',
+      startTime: new Date().toLocaleString('zh-CN', { hour12: false }),
+      estimatedEndTime: '计算中...',
+      owner: '当前用户'
+    };
+
+    setTasks([newTask, ...tasks]);
+    setView('list');
+    
+    // Reset
+    setFormData({
+      name: '',
+      priority: 'Medium',
+      mediums: [],
+      selectedDataSources: [],
+      selectedAgents: [],
+    });
+    setWorkflowNodes([]);
+  };
+
+  const TaskStatusBadge = ({ status }: { status: ResearchTask['status'] }) => {
+    switch (status) {
+      case 'running': return <span className="flex items-center gap-1 text-blue-400 bg-blue-900/30 px-2 py-0.5 rounded text-[10px] border border-blue-800"><span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>进行中</span>;
+      case 'completed': return <span className="text-green-400 bg-green-900/30 px-2 py-0.5 rounded text-[10px] border border-green-800">已完成</span>;
+      case 'error': return <span className="text-red-400 bg-red-900/30 px-2 py-0.5 rounded text-[10px] border border-red-800">异常</span>;
+      case 'queued': return <span className="text-slate-400 bg-slate-800 px-2 py-0.5 rounded text-[10px] border border-slate-700">排队中</span>;
+      default: return <span className="text-slate-500 bg-slate-900 px-2 py-0.5 rounded text-[10px] border border-slate-800">未知</span>;
+    }
   };
 
   return (
-    <div className="relative" ref={containerRef}>
-      <div 
-        className="w-full bg-slate-800 border border-slate-600 rounded text-xs p-2 text-slate-200 min-h-[34px] cursor-pointer flex flex-wrap gap-1 items-center"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {selected.length === 0 && <span className="text-slate-500 italic">{placeholder}</span>}
-        {selected.map(item => (
-          <span key={item} className="bg-blue-600/30 text-blue-200 px-1.5 py-0.5 rounded border border-blue-500/30 flex items-center gap-1 leading-none animate-in fade-in zoom-in duration-200">
-            {item}
-            <X className="w-3 h-3 hover:text-white cursor-pointer" onClick={(e) => {
-              e.stopPropagation();
-              toggleSelection(item);
-            }}/>
-          </span>
-        ))}
-        <div className="ml-auto flex items-center pl-1">
-           <ChevronDown className={`w-3 h-3 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+    <div className="h-full flex flex-col p-6 space-y-6">
+       <div className="flex justify-between items-start shrink-0">
+        <div>
+          <h2 className="text-xl font-bold text-slate-100 mb-1 flex items-center gap-2">
+            <FolderKanban className="w-6 h-6 text-blue-500" />
+            项目管理 (Project Management)
+          </h2>
+          <p className="text-sm text-slate-400">统一管理无人实验室的科研项目，定义目标、资源与实验流程。</p>
+        </div>
+        <div className="flex gap-3">
+           {view === 'create' && (
+             <button onClick={() => setView('list')} className="px-4 py-2 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 text-sm flex items-center gap-2">
+               <X className="w-4 h-4" /> 取消
+             </button>
+           )}
+           {view === 'list' && (
+             <button 
+               onClick={() => setView('create')}
+               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-medium transition-colors shadow-lg shadow-blue-900/50"
+             >
+                <Plus className="w-4 h-4" /> 新建项目
+             </button>
+           )}
         </div>
       </div>
-      
-      {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded shadow-xl z-50 max-h-48 overflow-y-auto custom-scrollbar">
-          {options.map(opt => (
-            <div 
-              key={opt}
-              className={`px-3 py-2 text-xs cursor-pointer flex items-center gap-2 hover:bg-slate-700/80 transition-colors ${selected.includes(opt) ? 'bg-slate-700/50 text-blue-400 font-medium' : 'text-slate-300'}`}
-              onClick={() => toggleSelection(opt)}
-            >
-              <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${selected.includes(opt) ? 'bg-blue-600 border-blue-600' : 'border-slate-500 bg-slate-900'}`}>
-                {selected.includes(opt) && <Check className="w-2.5 h-2.5 text-white" />}
+
+      {view === 'list' ? (
+        <div className="flex-1 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden flex flex-col animate-in fade-in duration-300">
+           {/* Task List Header */}
+           <div className="p-4 border-b border-slate-700 flex gap-4 text-sm text-slate-400 font-medium bg-slate-800/50">
+              <div className="flex-1">项目名称 / ID</div>
+              <div className="w-40">当前阶段</div>
+              <div className="w-32">进度</div>
+              <div className="w-24">状态</div>
+              <div className="w-40">负责人</div>
+              <div className="w-24 text-right">操作</div>
+           </div>
+           {/* Task List Body */}
+           <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {tasks.map(task => (
+                <div key={task.id} className="p-4 border-b border-slate-700/50 flex gap-4 items-center hover:bg-slate-700/20 transition-colors group cursor-pointer">
+                   <div className="flex-1">
+                      <div className="text-slate-200 font-medium group-hover:text-blue-400 transition-colors">{task.name}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{task.id}</div>
+                   </div>
+                   <div className="w-40 text-xs text-slate-300 flex flex-col justify-center">
+                     <span>{task.stageLabel}</span>
+                     {task.priority === 'High' && <span className="text-[10px] text-orange-400 font-bold mt-0.5">HIGH PRIORITY</span>}
+                   </div>
+                   <div className="w-32 flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                         <div className={`h-full rounded-full ${task.status === 'error' ? 'bg-red-500' : task.status === 'queued' ? 'bg-slate-500' : 'bg-blue-500'}`} style={{width: `${task.progress}%`}}></div>
+                      </div>
+                      <span className="text-[10px] text-slate-500 w-6 text-right">{task.progress}%</span>
+                   </div>
+                   <div className="w-24"><TaskStatusBadge status={task.status} /></div>
+                   <div className="w-40 text-xs text-slate-400 flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold">
+                        {task.owner.charAt(0)}
+                      </div>
+                      {task.owner}
+                   </div>
+                   <div className="w-24 text-right">
+                      <button className="p-1.5 hover:bg-slate-700 rounded text-slate-500 hover:text-white transition-colors">
+                         <ArrowRight className="w-4 h-4" />
+                      </button>
+                   </div>
+                </div>
+              ))}
+           </div>
+        </div>
+      ) : (
+        <div className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-8 overflow-y-auto custom-scrollbar animate-in slide-in-from-right duration-300">
+           <div className="max-w-4xl mx-auto space-y-8">
+              
+              {/* Step 1: Definition */}
+              <div>
+                 <h3 className="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-blue-400" /> 1. 定义项目目标 (Project Definition)
+                 </h3>
+                 <div className="space-y-4 bg-slate-900/30 p-5 rounded-lg border border-slate-700/50">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="col-span-2">
+                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">项目名称 <span className="text-red-500">*</span></label>
+                         <input 
+                           type="text" 
+                           value={formData.name}
+                           onChange={(e) => setFormData({...formData, name: e.target.value})}
+                           className="w-full bg-slate-900 border border-slate-600 rounded p-2.5 text-sm text-slate-200 focus:ring-1 focus:ring-blue-500 outline-none placeholder:text-slate-600" 
+                           placeholder="例如：2024 夏季长江口新污染物普查" 
+                         />
+                      </div>
+                      <div>
+                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">优先级</label>
+                         <div className="flex gap-4">
+                            {['Low', 'Medium', 'High'].map(p => (
+                               <label key={p} className="flex items-center gap-2 cursor-pointer">
+                                  <input 
+                                    type="radio" 
+                                    name="priority" 
+                                    checked={formData.priority === p} 
+                                    onChange={() => setFormData({...formData, priority: p as any})}
+                                    className="accent-blue-500" 
+                                  />
+                                  <span className={`text-sm ${formData.priority === p ? 'text-blue-400 font-bold' : 'text-slate-400'}`}>{p}</span>
+                               </label>
+                            ))}
+                         </div>
+                      </div>
+                      <div>
+                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">研究介质</label>
+                         <div className="flex gap-3 flex-wrap">
+                            {['地表水', '地下水', '土壤', '生物样本', '大气沉降'].map(t => (
+                               <label 
+                                 key={t} 
+                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-all ${
+                                   formData.mediums.includes(t) 
+                                     ? 'bg-blue-600/20 border-blue-500 text-blue-200' 
+                                     : 'bg-slate-900/50 border-slate-600 text-slate-400 hover:bg-slate-700'
+                                 }`}
+                               >
+                                  <input 
+                                    type="checkbox" 
+                                    className="hidden" 
+                                    checked={formData.mediums.includes(t)}
+                                    onChange={() => handleMediumToggle(t)}
+                                  />
+                                  <span className="text-xs">{t}</span>
+                               </label>
+                            ))}
+                         </div>
+                      </div>
+                    </div>
+                 </div>
               </div>
-              {opt}
-            </div>
-          ))}
+
+              {/* Step 2: Data Source */}
+              <div>
+                 <h3 className="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+                    <Database className="w-5 h-5 text-purple-400" /> 2. 绑定数据资源 (Data Binding)
+                 </h3>
+                 <div className="bg-slate-900/30 p-5 rounded-lg border border-slate-700/50">
+                    <div className="grid grid-cols-2 gap-4">
+                       {DATA_SOURCES.map(ds => (
+                          <div 
+                             key={ds.id}
+                             onClick={() => toggleSelection('selectedDataSources', ds.id)}
+                             className={`p-3 rounded border cursor-pointer flex items-center justify-between transition-all ${
+                                formData.selectedDataSources.includes(ds.id)
+                                  ? 'bg-purple-900/20 border-purple-500 text-purple-200'
+                                  : 'bg-slate-800 border-slate-700 hover:border-slate-500'
+                             }`}
+                          >
+                             <div>
+                                <div className="text-sm font-medium flex items-center gap-2">
+                                  {ds.type === 'stream' && <Clock className="w-3 h-3" />}
+                                  {ds.type === 'db' && <Database className="w-3 h-3" />}
+                                  {ds.type === 'file' && <Server className="w-3 h-3" />}
+                                  {ds.name}
+                                </div>
+                                <div className="text-xs opacity-60 mt-0.5">{ds.type.toUpperCase()} • {ds.size}</div>
+                             </div>
+                             {formData.selectedDataSources.includes(ds.id) && <CheckCircle2 className="w-4 h-4 text-purple-400" />}
+                          </div>
+                       ))}
+                    </div>
+                 </div>
+              </div>
+
+              {/* Step 3: Agent Selection */}
+              <div>
+                 <h3 className="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+                    <Bot className="w-5 h-5 text-green-400" /> 3. 编排智能体团队 (Agent Team)
+                 </h3>
+                 <div className="bg-slate-900/30 p-5 rounded-lg border border-slate-700/50">
+                    <div className="grid grid-cols-2 gap-4">
+                       {AGENTS.map(agent => (
+                          <div 
+                             key={agent.id}
+                             onClick={() => toggleSelection('selectedAgents', agent.id)}
+                             className={`p-3 rounded border cursor-pointer flex items-center justify-between transition-all ${
+                                formData.selectedAgents.includes(agent.id)
+                                  ? 'bg-green-900/20 border-green-500 text-green-200'
+                                  : 'bg-slate-800 border-slate-700 hover:border-slate-500'
+                             }`}
+                          >
+                             <div>
+                                <div className="text-sm font-medium">{agent.name}</div>
+                                <div className="text-xs opacity-60 mt-0.5">{agent.desc}</div>
+                             </div>
+                             {formData.selectedAgents.includes(agent.id) && <CheckCircle2 className="w-4 h-4 text-green-400" />}
+                          </div>
+                       ))}
+                    </div>
+                 </div>
+              </div>
+
+              {/* Step 4: Low Code Workflow Builder */}
+              <div>
+                 <h3 className="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+                    <GitFork className="w-5 h-5 text-orange-400" /> 4. 低代码工作流配置 (Low-Code Workflow)
+                 </h3>
+                 <div className="bg-slate-900/30 p-6 rounded-lg border border-slate-700/50 space-y-6">
+                    
+                    <div className="bg-slate-800/50 p-4 rounded border border-slate-700/30 text-xs text-slate-400">
+                       <span className="text-orange-400 font-bold">配置模式：</span> 拖拽节点或点击下方按钮，组装物理实验与数字推演的混合流程。
+                    </div>
+
+                    {/* Visual Workflow Chain */}
+                    <div className="flex flex-wrap items-center gap-4 min-h-[100px]">
+                       {workflowNodes.length === 0 && (
+                          <div className="w-full flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-700 rounded-xl p-8 bg-slate-800/20">
+                             <Workflow className="w-8 h-8 mb-2 opacity-50" />
+                             <p className="text-sm font-medium">流程画布为空</p>
+                             <p className="text-xs mt-1">请添加节点以定义实验步骤</p>
+                          </div>
+                       )}
+                       
+                       {workflowNodes.map((node, index) => (
+                          <div key={node.id} className="flex items-center gap-2 group animate-in zoom-in-50 duration-300">
+                             <div className="relative bg-slate-800 border border-slate-600 p-3 rounded-lg min-w-[150px] shadow-lg hover:border-blue-500 transition-all hover:shadow-blue-900/20">
+                                <button 
+                                   onClick={() => removeNode(node.id)}
+                                   className="absolute -top-2 -right-2 bg-slate-700 text-slate-400 rounded-full p-1 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                >
+                                   <X className="w-3 h-3" />
+                                </button>
+                                <div className="flex items-center gap-2 mb-2 text-xs font-bold text-slate-300">
+                                   <div className={`p-1.5 rounded ${node.type === 'device' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}`}>
+                                      {node.type === 'device' ? <FlaskConical className="w-3 h-3" /> : <Cpu className="w-3 h-3" />}
+                                   </div>
+                                   <span className="truncate max-w-[100px]">{node.name}</span>
+                                </div>
+                                <div className="text-[10px] text-slate-500 truncate pl-1 border-l-2 border-slate-700">
+                                   {node.type === 'device' 
+                                      ? RESOURCES.device.find(r => r.id === node.resourceId)?.name 
+                                      : RESOURCES.algorithm.find(r => r.id === node.resourceId)?.name}
+                                </div>
+                             </div>
+                             {index < workflowNodes.length - 1 && <ArrowRight className="w-5 h-5 text-slate-600" />}
+                          </div>
+                       ))}
+                    </div>
+
+                    {/* Add Node Panel */}
+                    {!isAddingNode ? (
+                       <button 
+                         onClick={() => setIsAddingNode(true)}
+                         className="w-full py-4 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:border-blue-500 hover:text-blue-400 hover:bg-slate-800/50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                       >
+                          <Plus className="w-5 h-5" /> 添加流程节点
+                       </button>
+                    ) : (
+                       <div className="bg-slate-800 p-5 rounded-xl border border-slate-600 animate-in fade-in zoom-in-95 duration-200 shadow-xl">
+                          <h4 className="text-sm font-bold text-slate-200 mb-4 flex items-center justify-between">
+                             <span>配置新节点</span>
+                             <button onClick={() => setIsAddingNode(false)}><X className="w-4 h-4 text-slate-500 hover:text-white" /></button>
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                             <div className="md:col-span-2">
+                                <label className="block text-xs text-slate-400 mb-1.5">节点名称</label>
+                                <input 
+                                  type="text" 
+                                  className="w-full bg-slate-900 border border-slate-600 rounded p-2.5 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 outline-none"
+                                  placeholder="例如：样品前处理"
+                                  value={newNode.name || ''}
+                                  onChange={e => setNewNode({...newNode, name: e.target.value})}
+                                />
+                             </div>
+                             <div>
+                                <label className="block text-xs text-slate-400 mb-1.5">节点类型</label>
+                                <div className="flex bg-slate-900 rounded border border-slate-600 p-1">
+                                   <button 
+                                      onClick={() => setNewNode({...newNode, type: 'device', resourceId: ''})}
+                                      className={`flex-1 py-1.5 text-xs rounded transition-colors ${newNode.type === 'device' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                                   >物理实验</button>
+                                   <button 
+                                      onClick={() => setNewNode({...newNode, type: 'algorithm', resourceId: ''})}
+                                      className={`flex-1 py-1.5 text-xs rounded transition-colors ${newNode.type === 'algorithm' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                                   >数字推演</button>
+                                </div>
+                             </div>
+                             <div>
+                                <label className="block text-xs text-slate-400 mb-1.5">
+                                   {newNode.type === 'device' ? '选择实验设备' : '选择算法/模型'}
+                                </label>
+                                <select 
+                                   className="w-full bg-slate-900 border border-slate-600 rounded p-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-blue-500"
+                                   value={newNode.resourceId || ''}
+                                   onChange={e => setNewNode({...newNode, resourceId: e.target.value})}
+                                >
+                                   <option value="">-- 请选择 --</option>
+                                   {newNode.type === 'device' 
+                                      ? RESOURCES.device.map(r => <option key={r.id} value={r.id}>{r.name}</option>)
+                                      : RESOURCES.algorithm.map(r => <option key={r.id} value={r.id}>{r.name}</option>)
+                                   }
+                                </select>
+                             </div>
+                             <div className="md:col-span-2">
+                                <label className="block text-xs text-slate-400 mb-1.5">输入数据 (Inherited)</label>
+                                <select 
+                                   className="w-full bg-slate-900 border border-slate-600 rounded p-2.5 text-xs text-slate-200 outline-none"
+                                   value={newNode.inputData || ''}
+                                   onChange={e => setNewNode({...newNode, inputData: e.target.value})}
+                                >
+                                   <option value="">(自动继承上一步输出)</option>
+                                   {formData.selectedDataSources.map(dsId => {
+                                      const ds = DATA_SOURCES.find(d => d.id === dsId);
+                                      return ds ? <option key={ds.id} value={ds.id}>{ds.name}</option> : null;
+                                   })}
+                                </select>
+                             </div>
+                          </div>
+                          <div className="mt-5 flex justify-end">
+                             <button 
+                                onClick={handleAddNode}
+                                disabled={!newNode.name || !newNode.resourceId}
+                                className="bg-blue-600 text-white text-xs px-5 py-2.5 rounded hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                             >
+                                确认添加节点
+                             </button>
+                          </div>
+                       </div>
+                    )}
+                 </div>
+              </div>
+
+              {/* Action Bar */}
+              <div className="pt-6 border-t border-slate-700 flex justify-end gap-3 sticky bottom-0 bg-slate-900/80 backdrop-blur py-4 -mx-4 px-4 z-10">
+                 <button className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-sm transition-colors flex items-center gap-2">
+                    <Save className="w-4 h-4" /> 保存草稿
+                 </button>
+                 <button 
+                   onClick={handleCreateTask}
+                   disabled={!formData.name}
+                   className={`px-6 py-2 text-white rounded text-sm font-bold shadow-lg transition-colors flex items-center gap-2 ${
+                     formData.name 
+                       ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/50 cursor-pointer' 
+                       : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                   }`}
+                 >
+                    <Play className="w-4 h-4" /> 启动项目
+                 </button>
+              </div>
+           </div>
         </div>
       )}
     </div>
   );
 };
 
-
-const NewTask: React.FC = () => {
-  const [taskName, setTaskName] = useState('新污染物筛查任务_20240521');
-  
-  // Canvas State
-  const [nodes, setNodes] = useState<WorkflowNode[]>([
-    { id: '1', label: '样品自动化采集', type: 'process', status: 'pending', x: 100, y: 150, config: { device: ['Auto-SPE (固相萃取)'], inputType: 'physical_sample' } }
-  ]);
-  const [edges, setEdges] = useState<WorkflowEdge[]>([]);
-  
-  // Interaction State
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [isDraggingNode, setIsDraggingNode] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [connectingSource, setConnectingSource] = useState<string | null>(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-
-  const canvasRef = useRef<HTMLDivElement>(null);
-
-  // --- Handlers ---
-
-  // 1. Drag New Node from Sidebar
-  const handleDragStartFromSidebar = (e: React.DragEvent, type: WorkflowNode['type'], label: string) => {
-    e.dataTransfer.setData('nodeType', type);
-    e.dataTransfer.setData('nodeLabel', label);
-  };
-
-  const handleDropOnCanvas = (e: React.DragEvent) => {
-    e.preventDefault();
-    const type = e.dataTransfer.getData('nodeType') as WorkflowNode['type'];
-    const label = e.dataTransfer.getData('nodeLabel');
-    
-    if (type && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left - 80; // center roughly
-      const y = e.clientY - rect.top - 40;
-      
-      const newNode: WorkflowNode = {
-        id: Date.now().toString(),
-        label,
-        type,
-        status: 'pending',
-        x,
-        y,
-        config: {
-          name: label,
-          params: {}
-        }
-      };
-      setNodes([...nodes, newNode]);
-      setSelectedNodeId(newNode.id);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
-
-  // 2. Move Existing Node
-  const handleNodeMouseDown = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    const node = nodes.find(n => n.id === id);
-    if (node) {
-      setIsDraggingNode(id);
-      setSelectedNodeId(id);
-      // Calculate offset within the node
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      setDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (canvasRef.current) {
-       const rect = canvasRef.current.getBoundingClientRect();
-       setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-
-       if (isDraggingNode) {
-         const newX = e.clientX - rect.left - dragOffset.x;
-         const newY = e.clientY - rect.top - dragOffset.y;
-         setNodes(nodes.map(n => n.id === isDraggingNode ? { ...n, x: newX, y: newY } : n));
-       }
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDraggingNode(null);
-    setConnectingSource(null);
-  };
-
-  // 3. Create Connections
-  const handlePortMouseDown = (e: React.MouseEvent, nodeId: string) => {
-    e.stopPropagation(); // Don't drag node
-    setConnectingSource(nodeId);
-  };
-
-  const handlePortMouseUp = (e: React.MouseEvent, targetId: string) => {
-    e.stopPropagation();
-    if (connectingSource && connectingSource !== targetId) {
-      // Check if connection exists
-      if (!edges.find(edge => edge.from === connectingSource && edge.to === targetId)) {
-        const newEdge: WorkflowEdge = {
-          id: `${connectingSource}-${targetId}`,
-          from: connectingSource,
-          to: targetId
-        };
-        setEdges([...edges, newEdge]);
-      }
-    }
-    setConnectingSource(null);
-  };
-
-  // 4. Update Configuration
-  const updateConfig = (key: keyof NodeConfig, value: any) => {
-    if (!selectedNodeId) return;
-    setNodes(nodes.map(n => 
-      n.id === selectedNodeId 
-      ? { ...n, config: { ...n.config, [key]: value } } 
-      : n
-    ));
-  };
-
-  const updateParam = (key: string, value: string) => {
-    if (!selectedNodeId) return;
-    setNodes(nodes.map(n => {
-      if (n.id === selectedNodeId) {
-        return { 
-          ...n, 
-          config: { 
-            ...n.config, 
-            params: { ...n.config.params, [key]: value } 
-          } 
-        };
-      }
-      return n;
-    }));
-  };
-
-  const addMaterial = () => {
-    if (!selectedNodeId) return;
-    setNodes(nodes.map(n => {
-      if (n.id === selectedNodeId) {
-        const mats = n.config.materials || [];
-        return {
-          ...n,
-          config: {
-            ...n.config,
-            materials: [...mats, { name: PRESETS.materials[0], amount: '1', unit: 'ml' }]
-          }
-        };
-      }
-      return n;
-    }));
-  };
-
-  const deleteNode = (id: string) => {
-     setNodes(nodes.filter(n => n.id !== id));
-     setEdges(edges.filter(e => e.from !== id && e.to !== id));
-     if(selectedNodeId === id) setSelectedNodeId(null);
-  };
-
-  const selectedNode = nodes.find(n => n.id === selectedNodeId);
-
-  return (
-    <div className="h-full flex flex-col bg-slate-900" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
-      {/* 1. Header */}
-      <div className="h-16 border-b border-slate-700 flex items-center justify-between px-6 bg-slate-900 shrink-0 z-20">
-        <div className="flex items-center gap-4 w-1/2">
-           <div className="bg-blue-600 w-8 h-8 rounded flex items-center justify-center font-bold text-white">N</div>
-           <div className="flex-1">
-             <label className="text-[10px] text-slate-500 uppercase font-bold">任务名称</label>
-             <input 
-               type="text" 
-               value={taskName}
-               onChange={(e) => setTaskName(e.target.value)}
-               className="w-full bg-transparent border-none p-0 text-slate-200 font-semibold focus:ring-0 placeholder-slate-600"
-               placeholder="输入任务名称..."
-             />
-           </div>
-        </div>
-        <div className="flex gap-3">
-           <button className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 transition-colors border border-slate-600 text-sm">
-             <Save className="w-4 h-4" /> 保存方案
-           </button>
-           <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/50 text-sm">
-             <Play className="w-4 h-4" /> 部署运行
-           </button>
-        </div>
-      </div>
-
-      <div className="flex-1 flex overflow-hidden">
-        {/* 2. Left: Toolbox */}
-        <div className="w-64 border-r border-slate-700 bg-slate-800/50 flex flex-col z-10">
-           <div className="p-4 border-b border-slate-700">
-             <h3 className="text-sm font-bold text-slate-200">组件库</h3>
-             <p className="text-xs text-slate-500 mt-1">拖拽组件至画布以构建流程</p>
-           </div>
-           
-           <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              <div>
-                <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
-                  <FlaskConical className="w-3.5 h-3.5" /> 物理实验节点
-                </h4>
-                <div className="space-y-2">
-                   {['样品采集', '固相萃取 (SPE)', '仪器进样 (Injection)', '生物毒性暴露'].map(label => (
-                     <div 
-                       key={label}
-                       draggable 
-                       onDragStart={(e) => handleDragStartFromSidebar(e, 'process', label)}
-                       className="p-3 bg-slate-800 border border-slate-700 hover:border-green-500 rounded cursor-grab active:cursor-grabbing text-sm text-slate-300 transition-all flex items-center gap-2 shadow-sm"
-                     >
-                       <GripHorizontal className="w-4 h-4 text-slate-600" />
-                       {label}
-                     </div>
-                   ))}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
-                  <Cpu className="w-3.5 h-3.5" /> 智能分析节点
-                </h4>
-                <div className="space-y-2">
-                   {['NTS 数据清洗', '特征峰提取', '结构解析智能体', '风险预测模型', '机理仿真'].map(label => (
-                     <div 
-                       key={label}
-                       draggable 
-                       onDragStart={(e) => handleDragStartFromSidebar(e, 'ai_analysis', label)}
-                       className="p-3 bg-slate-800 border border-slate-700 hover:border-purple-500 rounded cursor-grab active:cursor-grabbing text-sm text-slate-300 transition-all flex items-center gap-2 shadow-sm"
-                     >
-                       <GripHorizontal className="w-4 h-4 text-slate-600" />
-                       {label}
-                     </div>
-                   ))}
-                </div>
-              </div>
-
-               <div>
-                <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
-                  <Settings className="w-3.5 h-3.5" /> 决策与控制
-                </h4>
-                <div className="space-y-2">
-                   {['人工复核', '条件分支', '报告生成'].map(label => (
-                     <div 
-                       key={label}
-                       draggable 
-                       onDragStart={(e) => handleDragStartFromSidebar(e, 'decision', label)}
-                       className="p-3 bg-slate-800 border border-slate-700 hover:border-orange-500 rounded cursor-grab active:cursor-grabbing text-sm text-slate-300 transition-all flex items-center gap-2 shadow-sm"
-                     >
-                       <GripHorizontal className="w-4 h-4 text-slate-600" />
-                       {label}
-                     </div>
-                   ))}
-                </div>
-              </div>
-           </div>
-        </div>
-
-        {/* 3. Center: Canvas */}
-        <div 
-           ref={canvasRef}
-           className="flex-1 bg-slate-900 relative overflow-hidden bg-[url('https://www.transparenttextures.com/patterns/grid-noise.png')]"
-           onDragOver={handleDragOver}
-           onDrop={handleDropOnCanvas}
-        >
-           {/* SVG Layer for Edges */}
-           <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-              <defs>
-                 <marker id="arrowhead-builder" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                   <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
-                 </marker>
-              </defs>
-              {edges.map(edge => {
-                 const fromNode = nodes.find(n => n.id === edge.from);
-                 const toNode = nodes.find(n => n.id === edge.to);
-                 if (!fromNode || !toNode) return null;
-                 
-                 // Handle offsets (Right side of source, Left side of target)
-                 const sx = fromNode.x + 192; // Width of node is w-48 (192px)
-                 const sy = fromNode.y + 40;  // Half height approx
-                 const tx = toNode.x;
-                 const ty = toNode.y + 40;
-
-                 // Bezier Curve
-                 const controlPointOffset = Math.abs(tx - sx) / 2;
-                 const d = `M ${sx} ${sy} C ${sx + controlPointOffset} ${sy}, ${tx - controlPointOffset} ${ty}, ${tx} ${ty}`;
-
-                 return (
-                    <g key={edge.id}>
-                       <path d={d} fill="none" stroke="#475569" strokeWidth="2" markerEnd="url(#arrowhead-builder)" />
-                    </g>
-                 )
-              })}
-              {/* Drawing Line (Draft) */}
-              {connectingSource && (
-                 <line 
-                   x1={nodes.find(n => n.id === connectingSource)!.x + 192} 
-                   y1={nodes.find(n => n.id === connectingSource)!.y + 40} 
-                   x2={mousePos.x} 
-                   y2={mousePos.y} 
-                   stroke="#3b82f6" 
-                   strokeWidth="2" 
-                   strokeDasharray="5,5" 
-                 />
-              )}
-           </svg>
-
-           {/* Nodes Layer */}
-           {nodes.map(node => (
-              <div 
-                key={node.id}
-                onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
-                style={{ transform: `translate(${node.x}px, ${node.y}px)` }}
-                className={`absolute w-48 bg-slate-800 rounded-lg shadow-xl cursor-move transition-shadow group z-10 ${
-                  selectedNodeId === node.id ? 'ring-2 ring-blue-500 border-transparent' : 'border border-slate-700 hover:border-slate-500'
-                }`}
-              >
-                 {/* Input Port (Target) */}
-                 <div 
-                    onMouseUp={(e) => handlePortMouseUp(e, node.id)}
-                    className="absolute -left-3 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-600 rounded-full border border-slate-400 hover:bg-blue-500 hover:scale-125 transition-all cursor-crosshair z-20"
-                    title="Input Port"
-                 ></div>
-
-                 {/* Output Port (Source) */}
-                 <div 
-                    onMouseDown={(e) => handlePortMouseDown(e, node.id)}
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-600 rounded-full border border-slate-400 hover:bg-blue-500 hover:scale-125 transition-all cursor-crosshair z-20"
-                    title="Output Port"
-                 ></div>
-
-                 {/* Node Header */}
-                 <div className={`h-2 rounded-t-lg w-full ${
-                    node.type === 'process' ? 'bg-green-500' : 
-                    node.type === 'ai_analysis' ? 'bg-purple-500' : 'bg-orange-500'
-                 }`}></div>
-                 
-                 <div className="p-3">
-                    <div className="flex justify-between items-start mb-2">
-                       <span className="font-bold text-slate-200 text-sm truncate">{node.label}</span>
-                       <button onClick={(e) => { e.stopPropagation(); deleteNode(node.id) }} className="text-slate-500 hover:text-red-400">
-                          <Trash2 className="w-3.5 h-3.5" />
-                       </button>
-                    </div>
-                    <div className="text-[10px] text-slate-500 space-y-1 flex flex-col">
-                       {/* Handle Array Display */}
-                       {node.config.device && (Array.isArray(node.config.device) ? node.config.device : [node.config.device]).map((d, i) => (
-                           <div key={i} className="truncate flex items-center gap-1"><FlaskConical className="w-2.5 h-2.5"/> {d}</div>
-                       ))}
-                       {node.config.algorithm && (Array.isArray(node.config.algorithm) ? node.config.algorithm : [node.config.algorithm]).map((a, i) => (
-                           <div key={i} className="truncate flex items-center gap-1"><Cpu className="w-2.5 h-2.5"/> {a}</div>
-                       ))}
-                       {!node.config.device && !node.config.algorithm && <div className="italic opacity-40">未配置参数</div>}
-                    </div>
-                 </div>
-              </div>
-           ))}
-        </div>
-
-        {/* 4. Right: Config Panel (Detailed) */}
-        <div className="w-96 bg-slate-800 border-l border-slate-700 flex flex-col overflow-y-auto z-20">
-           {selectedNode ? (
-             <div className="flex flex-col h-full">
-                <div className="p-5 border-b border-slate-700 bg-slate-800/80 backdrop-blur sticky top-0 z-10">
-                   <div className="text-xs font-bold text-slate-500 uppercase mb-1">{selectedNode.type === 'process' ? '物理实验节点' : '数字分析节点'}</div>
-                   <h3 className="text-lg font-bold text-slate-100">{selectedNode.label}</h3>
-                   <div className="text-xs text-slate-500 font-mono mt-1">ID: {selectedNode.id}</div>
-                </div>
-
-                <div className="p-5 space-y-8 flex-1">
-                   {/* SECTION 1: DATA INPUTS */}
-                   <div>
-                      <h4 className="text-sm font-bold text-blue-400 flex items-center gap-2 mb-3">
-                         <Database className="w-4 h-4" /> 数据与样本源
-                      </h4>
-                      <div className="space-y-3 bg-slate-900/50 p-3 rounded border border-slate-700">
-                         <div>
-                            <label className="text-xs text-slate-400 block mb-1">输入源类型</label>
-                            <select 
-                               value={selectedNode.config.inputType} 
-                               onChange={(e) => updateConfig('inputType', e.target.value)}
-                               className="w-full bg-slate-800 border border-slate-600 rounded text-xs p-2 text-slate-200"
-                            >
-                               <option value="physical_sample">实体样本 (Physical Sample)</option>
-                               <option value="digital_signal">数字信号 (Raw Data)</option>
-                               <option value="spectrum_file">质谱文件 (.RAW/.mzXML)</option>
-                            </select>
-                         </div>
-                         <div>
-                            <label className="text-xs text-slate-400 block mb-1">关联批次/数据库 (多选)</label>
-                            <MultiSelect 
-                               options={PRESETS.dataSources}
-                               value={selectedNode.config.dataSource}
-                               onChange={(val) => updateConfig('dataSource', val)}
-                               placeholder="选择数据源..."
-                            />
-                         </div>
-                      </div>
-                   </div>
-
-                   {/* SECTION 2: EXECUTION CONFIG */}
-                   <div>
-                      <h4 className="text-sm font-bold text-purple-400 flex items-center gap-2 mb-3">
-                         <Settings className="w-4 h-4" /> 执行配置
-                      </h4>
-                      <div className="space-y-3 bg-slate-900/50 p-3 rounded border border-slate-700">
-                         {selectedNode.type === 'process' ? (
-                            <div>
-                               <label className="text-xs text-slate-400 block mb-1">指定实验设备 (多选)</label>
-                               <MultiSelect
-                                  options={PRESETS.devices}
-                                  value={selectedNode.config.device}
-                                  onChange={(val) => updateConfig('device', val)}
-                                  placeholder="选择设备..."
-                               />
-                            </div>
-                         ) : (
-                            <div>
-                               <label className="text-xs text-slate-400 block mb-1">核心算法/模型 (多选)</label>
-                               <MultiSelect
-                                  options={PRESETS.algorithms}
-                                  value={selectedNode.config.algorithm}
-                                  onChange={(val) => updateConfig('algorithm', val)}
-                                  placeholder="选择算法..."
-                               />
-                            </div>
-                         )}
-
-                         <div className="pt-2 border-t border-slate-700">
-                            <label className="text-xs text-slate-400 block mb-2">运行参数 (Parameters)</label>
-                            <div className="space-y-2">
-                               <div className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-500 w-20">{selectedNode.type === 'process' ? '流速/温度' : '阈值/Conf'}</span>
-                                  <input 
-                                     type="text" 
-                                     className="flex-1 bg-slate-800 border border-slate-600 rounded text-xs p-1.5 text-slate-200"
-                                     placeholder="Value..."
-                                     value={(selectedNode.config.params?.param1 as string) || ''}
-                                     onChange={(e) => updateParam('param1', e.target.value)}
-                                  />
-                               </div>
-                               <div className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-500 w-20">{selectedNode.type === 'process' ? '持续时间' : 'Max Epochs'}</span>
-                                  <input 
-                                     type="text" 
-                                     className="flex-1 bg-slate-800 border border-slate-600 rounded text-xs p-1.5 text-slate-200"
-                                     placeholder="Value..."
-                                     value={(selectedNode.config.params?.param2 as string) || ''}
-                                     onChange={(e) => updateParam('param2', e.target.value)}
-                                  />
-                               </div>
-                            </div>
-                         </div>
-                      </div>
-                   </div>
-
-                   {/* SECTION 3: MATERIALS / RESOURCES (Only for Physical) */}
-                   {selectedNode.type === 'process' && (
-                      <div>
-                         <h4 className="text-sm font-bold text-green-400 flex items-center gap-2 mb-3">
-                            <Beaker className="w-4 h-4" /> 物料与耗材
-                         </h4>
-                         <div className="bg-slate-900/50 p-3 rounded border border-slate-700 space-y-2">
-                            {selectedNode.config.materials?.map((mat, idx) => (
-                               <div key={idx} className="flex gap-2 items-center text-xs">
-                                  <div className="flex-1 bg-slate-800 p-1.5 rounded border border-slate-600 truncate">{mat.name}</div>
-                                  <div className="w-12 bg-slate-800 p-1.5 rounded border border-slate-600 text-center">{mat.amount}</div>
-                                  <div className="w-10 text-slate-500">{mat.unit}</div>
-                                  <button className="text-slate-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
-                               </div>
-                            ))}
-                            <button 
-                               onClick={addMaterial}
-                               className="w-full py-1.5 border border-dashed border-slate-600 rounded text-xs text-slate-500 hover:text-white hover:border-slate-400 flex items-center justify-center gap-1"
-                            >
-                               <Plus className="w-3 h-3" /> 添加试剂/耗材
-                            </button>
-                         </div>
-                      </div>
-                   )}
-
-                   {/* SECTION 4: OUTPUTS */}
-                   <div>
-                      <h4 className="text-sm font-bold text-orange-400 flex items-center gap-2 mb-3">
-                         <ArrowRight className="w-4 h-4" /> 预期产出
-                      </h4>
-                      <div className="bg-slate-900/50 p-3 rounded border border-slate-700">
-                         <label className="text-xs text-slate-400 block mb-1">产物类型</label>
-                         <div className="flex gap-2 text-xs">
-                            <span className="bg-slate-800 px-2 py-1 rounded border border-slate-600 text-slate-300">
-                               {selectedNode.type === 'process' ? 'Physical Sample (ID)' : 'JSON / Report'}
-                            </span>
-                         </div>
-                      </div>
-                   </div>
-
-                </div>
-             </div>
-           ) : (
-             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-6 text-center space-y-4">
-               <MousePointer2 className="w-12 h-12 opacity-20" />
-               <p>请选择画布中的节点<br/>进行详细参数配置</p>
-             </div>
-           )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default NewTask;
+export default ProjectManagement;

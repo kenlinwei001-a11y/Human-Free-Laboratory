@@ -1,13 +1,15 @@
 export enum ModuleType {
-  DASHBOARD = 'dashboard',
-  DISCOVERY = 'discovery',
-  ANALYSIS = 'analysis',
-  RISK = 'risk',
-  SIMULATION = 'simulation',
-  AI_CONFIG = 'ai_config',
-  TASK_DETAIL = 'task_detail',
-  NEW_TASK = 'new_task',
-  KNOWLEDGE = 'knowledge'
+  TASK_MANAGE = 'task_manage',         // 1. 任务与目标管理
+  DASHBOARD = 'dashboard',             // 2. 数据与实验态势总览
+  DISCOVERY = 'discovery',             // 3. 新污染物发现与筛选
+  ANALYSIS = 'analysis',               // 4. 结构解析与机理推演
+  RISK = 'risk',                       // 5. 风险评估与决策支持
+  SIMULATION = 'simulation',           // 6. 治理实验仿真与对比
+  
+  AI_CONFIG = 'ai_config',             // 8. 智能配置 (Infrastructure)
+  
+  TASK_DETAIL = 'task_detail',         // Sub-view: Topology
+  KNOWLEDGE = 'knowledge'              // Sub-view: Knowledge Base (merged into AI Config or separate)
 }
 
 export enum DeviceStatus {
@@ -50,6 +52,8 @@ export interface AgentConfig {
   model: string;
   strategy: 'conservative' | 'balanced' | 'exploratory';
   isEnabled: boolean;
+  autoApprove?: boolean; // New: Auto-advance permission
+  phase?: string; // New: Research Phase
 }
 
 export interface ResearchTask {
@@ -67,42 +71,31 @@ export interface ResearchTask {
 
 // Low-Code Workflow Definitions
 export interface NodeConfig {
-  // Common
   name?: string;
   description?: string;
-  
-  // Execution Context
-  device?: string | string[];          // For physical nodes (Supports Multi-select)
-  algorithm?: string | string[];       // For AI nodes (Supports Multi-select)
-  modelBase?: string;                  // For AI nodes
-  
-  // Inputs
-  dataSource?: string | string[];      // e.g., 'DB_Water_Quality' (Supports Multi-select)
+  device?: string | string[];
+  algorithm?: string | string[];
+  modelBase?: string;
+  dataSource?: string | string[];
   inputType?: 'physical_sample' | 'digital_signal' | 'spectrum_file';
-  
-  // Resources (Physical)
   materials?: {
     name: string;
     amount: string;
     unit: string;
   }[];
-  
-  // Parameters
   params?: Record<string, string | number | boolean>;
-  
-  // Outputs
   outputType?: string;
 }
 
 export interface WorkflowNode {
   id: string;
   label: string;
-  type: 'process' | 'ai_analysis' | 'decision'; // process=physical, ai=digital
+  type: 'process' | 'ai_analysis' | 'decision'; 
   status: 'completed' | 'running' | 'pending' | 'error';
   x: number;
   y: number;
   config: NodeConfig;
-  details?: NodeDetail; // Runtime details (optional for builder)
+  details?: NodeDetail;
 }
 
 export interface WorkflowEdge {

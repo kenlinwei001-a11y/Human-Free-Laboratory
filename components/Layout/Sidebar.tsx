@@ -3,13 +3,11 @@ import { ModuleType } from '../../types';
 import { 
   LayoutDashboard, 
   Search, 
-  Microscope, 
   ShieldAlert, 
   FlaskConical, 
   Bot, 
-  Settings,
-  PlusCircle,
-  BookOpen
+  FolderKanban,
+  Network
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -19,14 +17,14 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentModule, onModuleChange }) => {
   const menuItems = [
+    { id: ModuleType.TASK_MANAGE, label: '项目管理', icon: FolderKanban, highlight: true },
     { id: ModuleType.DASHBOARD, label: '态势总览', icon: LayoutDashboard },
-    { id: ModuleType.NEW_TASK, label: '新建任务', icon: PlusCircle, highlight: true }, // New
-    { id: ModuleType.KNOWLEDGE, label: '算法与知识', icon: BookOpen }, // New
     { id: ModuleType.DISCOVERY, label: '发现与筛选', icon: Search },
-    { id: ModuleType.ANALYSIS, label: '结构与机理', icon: Microscope },
-    { id: ModuleType.RISK, label: '风险评估', icon: ShieldAlert },
-    { id: ModuleType.SIMULATION, label: '治理仿真', icon: FlaskConical },
-    { id: ModuleType.AI_CONFIG, label: '智能配置', icon: Bot },
+    { id: ModuleType.SIMULATION, label: '数字仿真实验', icon: FlaskConical },
+  ];
+
+  const configItems = [
+    { id: ModuleType.AI_CONFIG, label: 'AI 中台配置', icon: Bot },
   ];
 
   return (
@@ -41,9 +39,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentModule, onModuleChange }) => {
         </div>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        <div className="text-xs font-semibold text-slate-500 uppercase px-3 mb-2 mt-2">工作台</div>
-        {menuItems.slice(0, 3).map((item) => (
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar">
+        <div className="text-xs font-semibold text-slate-500 uppercase px-3 mb-2 mt-2">核心功能</div>
+        {menuItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onModuleChange(item.id)}
@@ -51,34 +49,31 @@ const Sidebar: React.FC<SidebarProps> = ({ currentModule, onModuleChange }) => {
               currentModule === item.id
                 ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30'
                 : item.highlight 
-                  ? 'text-white bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-900/20' 
+                  ? 'text-slate-200 hover:bg-slate-800 border border-transparent' 
                   : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
           >
-            <item.icon className="w-5 h-5" />
+            <item.icon className={`w-5 h-5 ${item.highlight && currentModule !== item.id ? 'text-blue-500' : ''}`} />
             <span>{item.label}</span>
-            {currentModule === item.id && !item.highlight && (
+            {currentModule === item.id && (
               <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
             )}
           </button>
         ))}
 
-        <div className="text-xs font-semibold text-slate-500 uppercase px-3 mb-2 mt-6">实验工序</div>
-        {menuItems.slice(3).map((item) => (
+        <div className="text-xs font-semibold text-slate-500 uppercase px-3 mb-2 mt-6">基础设施</div>
+        {configItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onModuleChange(item.id)}
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-md text-sm transition-colors ${
               currentModule === item.id
-                ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30'
+                ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
                 : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
           >
             <item.icon className="w-5 h-5" />
             <span>{item.label}</span>
-            {currentModule === item.id && (
-              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-            )}
           </button>
         ))}
       </nav>
@@ -87,12 +82,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentModule, onModuleChange }) => {
         <div className="bg-slate-800 rounded p-3 text-xs text-slate-400">
           <div className="flex justify-between mb-1">
             <span>系统状态</span>
-            <span className="text-green-400">稳定运行</span>
+            <span className="text-green-400 font-bold">推演中</span>
           </div>
-          <div className="w-full bg-slate-700 h-1.5 rounded-full mt-2">
-            <div className="bg-green-500 h-1.5 rounded-full" style={{ width: '92%' }}></div>
+          <div className="w-full bg-slate-700 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div className="bg-green-500 h-1.5 rounded-full animate-pulse" style={{ width: '92%' }}></div>
           </div>
-          <div className="mt-1 text-right">CPU 32%</div>
+          <div className="mt-2 text-right opacity-70">Task-X09 Running...</div>
         </div>
       </div>
     </div>

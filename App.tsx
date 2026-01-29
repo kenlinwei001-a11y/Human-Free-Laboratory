@@ -8,9 +8,10 @@ import Discovery from './modules/Discovery';
 import Analysis from './modules/Analysis';
 import AIConfig from './modules/AIConfig';
 import TaskTopology from './modules/TaskTopology';
-import NewTask from './modules/NewTask';
+import TaskManagement from './modules/NewTask'; 
 import KnowledgeCenter from './modules/KnowledgeCenter';
 import Simulation from './modules/Simulation';
+// RiskAssessment removed as standalone module
 import { ModuleType } from './types';
 import { AlertOctagon } from 'lucide-react';
 
@@ -25,20 +26,20 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (currentModule) {
+      case ModuleType.TASK_MANAGE:
+        return <TaskManagement />;
       case ModuleType.DASHBOARD:
         return <Dashboard onTaskClick={handleTaskClick} />;
       case ModuleType.DISCOVERY:
         return <Discovery />;
       case ModuleType.ANALYSIS:
         return <Analysis />;
-      case ModuleType.AI_CONFIG:
-        return <AIConfig />;
-      case ModuleType.NEW_TASK:
-        return <NewTask />;
-      case ModuleType.KNOWLEDGE:
-        return <KnowledgeCenter />;
       case ModuleType.SIMULATION:
         return <Simulation />;
+      case ModuleType.AI_CONFIG:
+        return <AIConfig />;
+      case ModuleType.KNOWLEDGE:
+        return <KnowledgeCenter />;
       case ModuleType.TASK_DETAIL:
         return <TaskTopology onBack={() => setCurrentModule(ModuleType.DASHBOARD)} />;
       default:
@@ -46,7 +47,6 @@ const App: React.FC = () => {
           <div className="flex flex-col items-center justify-center h-full text-slate-500">
              <AlertOctagon className="w-12 h-12 mb-4 opacity-50" />
              <h3 className="text-lg font-medium">该模块正在建设中 (Mock Placeholder)</h3>
-             <p className="text-sm mt-2">Risk Assessment module coming soon.</p>
           </div>
         );
     }
@@ -71,13 +71,13 @@ const App: React.FC = () => {
              {renderContent()}
            </main>
 
-           {/* 4. Right Panel (Collapsible - Only show in standard views) */}
-           {showRightPanel && currentModule !== ModuleType.TASK_DETAIL && currentModule !== ModuleType.NEW_TASK && currentModule !== ModuleType.SIMULATION && (
+           {/* 4. Right Panel (Collapsible - Only show in analysis/standard views) */}
+           {showRightPanel && (currentModule === ModuleType.DASHBOARD || currentModule === ModuleType.DISCOVERY || currentModule === ModuleType.ANALYSIS) && (
              <RightPanel />
            )}
            
            {/* Toggle for right panel (absolute positioned) */}
-           {currentModule !== ModuleType.TASK_DETAIL && currentModule !== ModuleType.NEW_TASK && currentModule !== ModuleType.SIMULATION && (
+           {(currentModule === ModuleType.DASHBOARD || currentModule === ModuleType.DISCOVERY || currentModule === ModuleType.ANALYSIS) && (
              <button 
                onClick={() => setShowRightPanel(!showRightPanel)}
                className="absolute right-0 top-1/2 -translate-y-1/2 bg-slate-800 border border-slate-600 p-1 rounded-l text-slate-400 hover:text-white z-20"
