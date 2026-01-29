@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, RotateCcw, Settings, Wind, Zap, Thermometer, Activity, Layers, 
   FlaskConical, Droplets, Plus, X, ArrowRight, Save, Cpu, Box, Workflow, 
-  FileCode, Database, CheckCircle2, ChevronRight, BarChart3, Bot
+  FileCode, Database, CheckCircle2, ChevronRight, BarChart3, Bot, Download
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area } from 'recharts';
 
@@ -112,6 +112,9 @@ const SimulationRunner = ({ onBack, config }: { onBack: () => void, config: any 
            </h2>
          </div>
          <div className="flex gap-3">
+            <button className="p-2 bg-slate-800 border border-slate-700 text-slate-300 rounded hover:bg-slate-700 hover:text-white transition-colors" title="Export Data">
+              <Download className="w-5 h-5" />
+            </button>
             <button onClick={resetSimulation} className="p-2 bg-slate-800 border border-slate-700 text-slate-300 rounded hover:bg-slate-700 hover:text-white transition-colors">
               <RotateCcw className="w-5 h-5" />
             </button>
@@ -134,7 +137,6 @@ const SimulationRunner = ({ onBack, config }: { onBack: () => void, config: any 
              <Settings className="w-4 h-4 text-slate-400" /> 边界条件设定
            </h3>
            <div className="space-y-6">
-             {/* Sliders... (Simplified for brevity, same logic as before) */}
              {[
                { label: '紫外光强', icon: Zap, key: 'uvIntensity', min: 0, max: 200, unit: 'W/m²' },
                { label: '催化剂', icon: Layers, key: 'catalystLoading', min: 0.1, max: 5, unit: 'g/L' },

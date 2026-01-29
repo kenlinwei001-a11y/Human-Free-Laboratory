@@ -54,7 +54,6 @@ const PIPELINE_WORKFLOWS: Record<string, {id: string, label: string, type: strin
     { id: 'n11', label: '数据库检索', type: 'db', desc: '匹配 ChemSpider, PubChem 本地镜像库' },
     { id: 'n12', label: '结果导出', type: 'output', desc: '生成 .csv 特征表与 .mgf 碎片文件' },
   ],
-  // ... other pipelines omitted for brevity
 };
 
 const dataConnectors = [
@@ -80,7 +79,6 @@ const mockDatasetContent: Record<string, any[]> = {
     { id: 'S005', rt: '22.3', mz: '412.05', intensity: 9800, snr: 18.0 },
     { id: 'S006', rt: '24.1', mz: '601.33', intensity: 2100, snr: 3.2 },
   ],
-  // ... other data omitted
 };
 
 const llmConfigs = [
@@ -341,7 +339,7 @@ const PipelineWorkflowDesigner = ({ pipelineId, onBack }: { pipelineId: string, 
                               {node.type === 'filter' && <ListFilter className="w-5 h-5" />}
                               {node.type === 'code' && <Code className="w-5 h-5" />}
                               {node.type === 'check' && <CheckSquare className="w-5 h-5" />}
-                              {node.type === 'test' && <TestTube className="w-5 h-5" />}
+                              {node.type === 'test' && <FlaskConical className="w-5 h-5" />}
                            </div>
                            <div className="text-center">
                               <div className="text-xs font-bold text-slate-200">{node.label}</div>
@@ -817,7 +815,3 @@ const AIConfigCorrected: React.FC = () => {
 };
 
 export default AIConfigCorrected;
-// Add TestTube to imports
-function TestTube(props: any) {
-  return <FlaskConical {...props} />
-}
