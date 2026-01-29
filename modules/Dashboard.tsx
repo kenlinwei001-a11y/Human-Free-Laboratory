@@ -1,7 +1,7 @@
 import React from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell } from 'recharts';
 import { Target, AlertTriangle, ScanLine, Database, Clock, PlayCircle, PauseCircle, CheckCircle2, AlertOctagon, MoreHorizontal, Layers, ArrowRight } from 'lucide-react';
-import { ResearchTask } from '../../types';
+import { ResearchTask } from '../types';
 
 interface DashboardProps {
   onTaskClick?: (taskId: string) => void;

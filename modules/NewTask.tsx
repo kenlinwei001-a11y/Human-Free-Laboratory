@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, FolderKanban, Play, CheckCircle2, Clock, AlertOctagon, ArrowRight, Target, Database, FlaskConical, X, Save, Bot, Workflow, Settings2, Trash2, Cpu, Server, GitFork } from 'lucide-react';
-import { ResearchTask } from '../../types';
+import { ResearchTask } from '../types';
 
 // Mock Data Resources
 const DATA_SOURCES = [

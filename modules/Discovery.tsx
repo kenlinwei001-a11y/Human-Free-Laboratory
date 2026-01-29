@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PollutantCandidate } from '../../types';
+import { PollutantCandidate } from '../types';
 import { Filter, Search, ArrowUpRight, Microscope, ChevronDown, Download, X, Activity, Database, FileDigit } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, Cell } from 'recharts';
 

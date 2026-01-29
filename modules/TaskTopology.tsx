@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { WorkflowNode, WorkflowEdge } from '../../types';
+import { WorkflowNode, WorkflowEdge } from '../types';
 import { 
   ArrowLeft, Database, FileText, Activity, Clock, FlaskConical, Cpu, Settings, 
   ShieldAlert, Share2, FileCode, CheckCircle, Lock, Globe, Download, Eye,

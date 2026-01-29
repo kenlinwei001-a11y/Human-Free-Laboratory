@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Algorithm } from '../../types';
+import { Algorithm } from '../types';
 import { Search, FileText, Code2, Download, ExternalLink, Cpu, BookOpen, Upload, Zap, Check, ChevronRight, Layers } from 'lucide-react';
 
 const mockAlgorithms: Algorithm[] = [

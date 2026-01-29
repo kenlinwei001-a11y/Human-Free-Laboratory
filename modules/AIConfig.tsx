@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AgentConfig, CHINESE_MODELS } from '../../types';
+import { AgentConfig, CHINESE_MODELS } from '../types';
 import TaskTopology from './TaskTopology';
 import { 
   Bot, Cpu, Shield, Save, 
