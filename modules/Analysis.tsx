@@ -140,7 +140,7 @@ const RiskAssessmentContent: React.FC = () => {
                          1. 启动微流控斑马鱼毒性验证实验
                       </button>
                       <button className="w-full text-left px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-slate-300 text-xs hover:bg-slate-700 transition-colors">
-                         2. 增加监测频次 (由每周 -> 每日)
+                         2. 增加监测频次 (由每周 → 每日)
                       </button>
                    </div>
                 </div>

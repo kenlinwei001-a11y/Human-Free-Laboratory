@@ -55,9 +55,9 @@ const RightPanel: React.FC = () => {
          <div className="space-y-2 mt-6">
            <div className="text-xs font-bold text-slate-500 uppercase">模型调用记录</div>
            <div className="text-xs text-slate-400 font-mono bg-black/30 p-2 rounded">
-             <div>[10:42:15] 传神任度 > 结构特征提取</div>
-             <div>[10:42:18] DeepSeek-Coder > 转化路径生成</div>
-             <div>[10:42:25] Qwen-72B > 综合风险综述</div>
+              <div>[10:42:15] 传神任度 &gt; 结构特征提取</div>
+              <div>[10:42:18] DeepSeek-Coder &gt; 转化路径生成</div>
+              <div>[10:42:25] Qwen-72B &gt; 综合风险综述</div>
            </div>
          </div>
       </div>
