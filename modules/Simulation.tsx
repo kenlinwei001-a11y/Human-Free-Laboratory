@@ -95,7 +95,9 @@ const SimulationRunner = ({ onBack, config }: { onBack: () => void, config: any 
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
   }, [isRunning, params]);
 
-  const removalRate = ((1 - (chartData[chartData.length - 1]?.c_c0 || 1)) * 100).toFixed(1);
+  // Safe access to data to prevent crashes
+  const currentDataPoint = chartData[chartData.length - 1] || { c_c0: 1.0, intermediate: 0 };
+  const removalRate = ((1 - currentDataPoint.c_c0) * 100).toFixed(1);
 
   return (
     <div className="flex flex-col h-full space-y-6 animate-in fade-in zoom-in-95 duration-300">
@@ -201,7 +203,7 @@ const SimulationRunner = ({ onBack, config }: { onBack: () => void, config: any 
                    <div className="text-green-400"> > Initializing ODE solver... OK</div>
                    <div className="text-blue-400"> > Loading DFT parameters for molecule C-109... Done</div>
                    <div className="text-slate-300"> > Time step: 0.1s | Precision: FP32</div>
-                   <div> > t={time.toFixed(1)}m | C/C0={(chartData[chartData.length-1].c_c0).toFixed(4)} | Inter={(chartData[chartData.length-1].intermediate).toFixed(4)}</div>
+                   <div> > t={time.toFixed(1)}m | C/C0={currentDataPoint.c_c0.toFixed(4)} | Inter={currentDataPoint.intermediate.toFixed(4)}</div>
                  </>
               )}
               {!isRunning && time > 0 && <div className="text-yellow-400"> > Simulation Paused/Finished.</div>}
