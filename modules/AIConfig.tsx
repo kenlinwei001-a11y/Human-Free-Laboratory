@@ -746,7 +746,7 @@ const ModelConfigPanel = () => {
 
 // --- Main Component ---
 
-const AIConfigCorrected: React.FC = () => {
+const AIConfig: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'agents' | 'capabilities' | 'pipelines' | 'connectors' | 'datasets' | 'models'>('pipelines');
   const [agents, setAgents] = useState<AgentConfig[]>(initialAgents);
   const [showTopology, setShowTopology] = useState(false);
@@ -814,4 +814,4 @@ const AIConfigCorrected: React.FC = () => {
   );
 };
 
-export default AIConfigCorrected;
+export default AIConfig;
