@@ -200,14 +200,14 @@ const SimulationRunner = ({ onBack, config }: { onBack: () => void, config: any 
               <div className="mb-2 text-slate-500 border-b border-slate-800 pb-1">System Output Log</div>
               {isRunning && (
                  <>
-                   <div className="text-green-400"> > Initializing ODE solver... OK</div>
-                   <div className="text-blue-400"> > Loading DFT parameters for molecule C-109... Done</div>
-                   <div className="text-slate-300"> > Time step: 0.1s | Precision: FP32</div>
-                   <div> > t={time.toFixed(1)}m | C/C0={currentDataPoint.c_c0.toFixed(4)} | Inter={currentDataPoint.intermediate.toFixed(4)}</div>
+                    <div className="text-green-400">&gt; Initializing ODE solver... OK</div>
+                    <div className="text-blue-400">&gt; Loading DFT parameters for molecule C-109... Done</div>
+                    <div className="text-slate-300">&gt; Time step: 0.1s | Precision: FP32</div>
+                    <div>&gt; t={time.toFixed(1)}m | C/C0={currentDataPoint.c_c0.toFixed(4)} | Inter={currentDataPoint.intermediate.toFixed(4)}</div>
                  </>
               )}
-              {!isRunning && time > 0 && <div className="text-yellow-400"> > Simulation Paused/Finished.</div>}
-              {!isRunning && time === 0 && <div className="text-slate-600"> > Ready to start.</div>}
+               {!isRunning && time > 0 && <div className="text-yellow-400">&gt; Simulation Paused/Finished.</div>}
+               {!isRunning && time === 0 && <div className="text-slate-600">&gt; Ready to start.</div>}
            </div>
         </div>
       </div>
